@@ -1,4 +1,5 @@
 using FileIO
+using HDF5
 using Optim, LineSearches
 using LinearAlgebra: I, norm
 using TimerOutputs
@@ -13,20 +14,19 @@ export optimiseipeps
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; folder = "./data/", atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
-    key = (folder, model, atype, D, χ, tol, maxiter)
-    folder = folder*"/$(model)/"
+function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/", atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
+    key = (folder, model, Ni, Nj, atype, D, χ, tol, maxiter)
+    folder = folder*"/$(model)_$(Ni)x$(Nj)/"
     mkpath(folder)
     chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         ipeps = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
-        ipeps = rand(ComplexF64,D,D,4,D,D)
+        ipeps = rand(ComplexF64,D,D,4,D,D,Ni*Nj)
         verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps /= norm(ipeps)
-    ipeps = parity_conserving(ipeps)
     return ipeps, key
 end
 
@@ -40,10 +40,10 @@ providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20)) where LT
-    folder, model, atype, D, χ, tol, maxiter = key
+    folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
     to = TimerOutput()
-    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), model;χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
-    ff(x) = double_ipeps_energy(x, model;χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
+    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), model;Ni=Ni,Nj=Nj,χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
+    ff(x) = double_ipeps_energy(atype(x), model;Ni=Ni,Nj=Nj,χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps, optimmethod,inplace = false,
@@ -66,13 +66,13 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, atype, D, χ, tol, maxiter = key
-    !(isdir(folder*"$(model)/")) && mkdir(folder*"$(model)/")
+    folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
+    !(isdir(folder*"$(model)_$(Ni)x$(Nj)/")) && mkdir(folder*"$(model)_$(Ni)x$(Nj)/")
     if !(key === nothing)
-        logfile = open(folder*"$(model)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
+        logfile = open(folder*"$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
         write(logfile, message)
         close(logfile)
-        save(folder*"$(model)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
+        save(folder*"$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
     end
     return false
 end

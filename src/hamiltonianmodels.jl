@@ -119,20 +119,27 @@ end
 function hamiltonian(model::SpinfulFermions)
 	t = model.t
 	U = model.U
-		ampo = AutoMPO()
-		sites = siteinds("Electron",2)
-		ampo += -t, "Cdagup",1,"Cup",2
-        ampo += -t, "Cdagup",2,"Cup",1
-        ampo += -t, "Cdagdn",1,"Cdn",2
-        ampo += -t, "Cdagdn",2,"Cdn",1
-        
-        ampo += 0.5*U, "Cdagup",1,"Cup",1,"Cdagdn",1,"Cdn",1
-        ampo += 0.5*U, "Cdagup",2,"Cup",2,"Cdagdn",2,"Cdn",2
-		H = MPO(ampo,sites)
+    ampo = AutoMPO()
+    sites = siteinds("Electron",2)
+    ampo .+= -t, "Cdagup",1,"Cup",2
+    ampo .+= -t, "Cdagup",2,"Cup",1
+    ampo .+= -t, "Cdagdn",1,"Cdn",2
+    ampo .+= -t, "Cdagdn",2,"Cdn",1
+    
+    if U ≠ 0
+        ampo .+= 1/4*U, "Nupdn", 1
+        ampo .+= 1/4*U, "Nupdn", 2
+        ampo .+= -1/8*U, "Nup", 1
+        ampo .+= -1/8*U, "Ndn", 1
+        ampo .+= -1/8*U, "Nup", 2
+        ampo .+= -1/8*U, "Ndn", 2
+    end
+    H = MPO(ampo,sites)
 
-		H1 = Array(H[1],inds(H[1])...)
-		H2 = Array(H[2],inds(H[2])...)
-		h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
+    H1 = Array(H[1],inds(H[1])...)
+    H2 = Array(H[2],inds(H[2])...)
+    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16) + 1/8 * U * I(16)
+    # h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
 
     return h
 end

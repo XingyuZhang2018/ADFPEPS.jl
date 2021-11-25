@@ -39,13 +39,11 @@ julia> parity_conserving(T)
 """
 function parity_conserving(T::Union{Array,CuArray}) where V<:Real
 	s = size(T)
-	@assert prod(size(T))%2 == 0
-	T = reshape(T,[2 for i = 1:Int(log2(prod(s)))]...)
-	p = zeros(size(T))
+	p = zeros(s)
+	bits = map(x -> Int(ceil(log2(x))), s)
 	for index in CartesianIndices(T)
-		if mod(sum([i for i in Tuple(index)].-1),2) == 0
-			p[index] = 1
-		end
+		i = Tuple(index) .- 1
+		sum(sum.(bitarray.(i,bits))) % 2 == 0 && (p[index] = 1)
 	end
 	p = _arraytype(T)(p)
 
@@ -98,12 +96,8 @@ julia> swapgate(2,4)
 """
 function swapgate(n1::Int,n2::Int)
 	S = ein"ij,kl->ikjl"(Matrix{Float64}(I,n1,n1),Matrix{Float64}(I,n2,n2))
-	for i = 1:n1
-		for j = 1:n2
-			if sum(bitarray(i-1,Int(ceil(log(n1)/log(2)))))%2 !=0 && sum(bitarray(j-1,Int(ceil(log(n2)/log(2)))))%2 !=0
-				S[i,j,:,:] .= -S[i,j,:,:]
-			end
-		end
+	for j = 1:n2, i = 1:n1
+		sum(bitarray(i-1,Int(ceil(log2(n1)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(n2)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
 	end
 	return S
 end
@@ -122,7 +116,8 @@ function fdag(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = conj(T)
 	
-	Tdag = ein"ulfdr,luij,rdpq->jifqp"(Tdag,_arraytype(T)(swapgate(nl,nu)),_arraytype(T)(swapgate(nr,nd)))
+	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
+	Tdag = ein"(ulfdr,luij),rdpq->jifqp"(Tdag, S, S)
 	return Tdag	
 end
 
@@ -137,10 +132,9 @@ function bulk(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
 	Tdag = fdag(T)
 	# u l s d r
 	# eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,10,11),(4,9,12,13)),(1,11,10,7,8,12,13,5))
-	eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,10,11),(4,9,12,13)),(11,1,7,10,8,12,13,5))
-	S1 = _arraytype(T)(swapgate(nl,nu))
-	S2 = _arraytype(T)(swapgate(nd,nr))
-	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S1,S2)),nu^2,nl^2,nd^2,nr^2))
+	eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,12,13),(4,9,10,11)),(13,1,7,12,8,10,11,5))
+	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
+	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S,S)),nu^2,nl^2,nd^2,nr^2))
 end
 
 """
@@ -153,74 +147,78 @@ end
 	order: fda,abc,dgeb,hgf,ceh
 """
 function ipeps_enviroment(T::AbstractArray, model;χ=20,maxiter=20,show_every=Inf,infolder=nothing,outfolder=nothing)
-	b = reshape([permutedims(bulk(T),(2,3,4,1))],1,1)
-	b /= norm(b)
-	# b += [1e-1*rand(ComplexF64, size(b[1]))]
-	Mu, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, verbose=true, savefile= true, infolder=infolder*"/$(model)/", outfolder=outfolder*"/$(model)/")
+	Ni, Nj = size(T)
+	b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
+	# VUMPS
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, verbose=true, savefile= true, infolder=infolder*"/$(model)_$(Ni)x$(Nj)/", outfolder=outfolder*"/$(model)_$(Ni)x$(Nj)/", show_every=Inf)
 
-	E1 = permutedims(FLo[1,1],(3,2,1))
-	E2 = ALu[1,1]
-	E3 = ein"ij,jkl->ikl"(Cu[1,1],ARu[1,1])
-	E4 = FRo[1,1]
-	E5 = permutedims(ARd[1,1],(3,2,1))
-	E6 = ein"ijk,kp->pji"(ALd[1,1],Cd[1,1])
-	E7 = permutedims(FL[1,1],(3,2,1))
-	E8 = FR[1,1]
+	E1 = FLo
+	E2 = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
+	E3 = ARu
+	E4 = FRo
+	E5 = ARd
+	E6 = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
+	E7 = FL
+	E8 = FR
 
-	(E1,E2,E3,E4,E5,E6,E7,E8) = map(_arraytype(T),(E1,E2,E3,E4,E5,E6,E7,E8))
 	return (E1,E2,E3,E4,E5,E6,E7,E8)
 end
 
-function double_ipeps_energy(T::Union{Array,CuArray}, model::HamiltonianModel;χ=80,maxiter=20,show_every=Inf,infolder=nothing,outfolder=nothing)
-	T = parity_conserving(T)
-    
-	# @timeit timer "Obtain Enviroment" begin
-		enviroments = ipeps_enviroment(T,model,χ=χ,maxiter=maxiter,show_every=5;infolder=infolder,outfolder=outfolder)
-	# end
+function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1,Nj=1,χ=80,maxiter=20,show_every=Inf,infolder=nothing,outfolder=nothing)	
+	T = reshape([parity_conserving(ipeps[:,:,:,:,:,i]) for i = 1:Ni*Nj], (Ni, Nj))
+	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(T,model,χ=χ,maxiter=maxiter,show_every=show_every;infolder=infolder,outfolder=outfolder)
+	etol = 0
 	
-	# @timeit timer "Horizontal Contraction" begin
-        h = reshape(_arraytype(T)(hamiltonian(model)), 4, 4, 4, 4)
-		ρ = square_ipeps_contraction_horizontal(T,map(_arraytype(T),enviroments))
-        E = ein"ijkl,ijkl -> "(ρ,h)[]
-		n = ein"ijij -> "(ρ)[]
-		e1 = E/n
-	# end
+	atype = _arraytype(E1[1,1]){ComplexF64}
+	for j = 1:Nj, i = 1:Ni
+		ir = Ni + 1 - i
+		jr = j + 1 - (j==Nj) * Nj
+        h = Zygote.@ignore reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
+		eij = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j],E7[i,j],E8[i,j])
+		ρ = square_ipeps_contraction_horizontal(T[i,j],T[i,jr],eij)
+		# ρ1 = reshape(ρ,16,16)
+		# @show norm(ρ1-ρ1')
+        E = ein"ijkl,ijkl -> "(ρ,h)
+		n = ein"ijij -> "(ρ)
+		etol += Array(E)[]/Array(n)[]
+		println("─ = $(Array(E)[]/Array(n)[])") 
 
-	# @timeit timer "Vertical Contraction" begin
-        h = reshape(_arraytype(T)(hamiltonian(model)), 4, 4, 4, 4)
-		ρ = square_ipeps_contraction_vertical(T,map(_arraytype(T),enviroments))
-        E = ein"ijkl,ijkl -> "(ρ,h)[]
-		n = ein"ijij -> "(ρ)[]
-		e2 = E/n
-	# end
+        eij = (E1[ir,j],E2[i,j],E3[i,j],E4[ir,j],E5[ir,jr],E6[i,j],E7[i,j],E8[i,j])
+		ρ = square_ipeps_contraction_vertical(T[i,j],T[ir,j],eij)
+		# ρ1 = reshape(ρ,16,16)
+		# @show norm(ρ1-ρ1')
+        E = ein"ijkl,ijkl -> "(ρ,h)
+		n = ein"ijij -> "(ρ)
+		etol += Array(E)[]/Array(n)[]
+		println("│ = $(Array(E)[]/Array(n)[])") 
+	end
 
-	println("VH=$(e1) \nVE=$(e2)")
-	return real(e1+e2)
+	return real(etol)/Ni/Nj
 end
 
-function square_ipeps_contraction_vertical(T,env)
-	nu,nl,nf,nd,nr = size(T)
+function square_ipeps_contraction_vertical(T1,T2,env)
+	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
 	(E1,E2,E3,E4,E5,E6,E7,E8) = map(x->reshape(x,χ,nl,nl,χ),env)
 
-	optcode(x) = VERTICAL_RULES(map(_arraytype(T),x)...)
-	result = optcode([T,fdag(T),swapgate(nl,nu),swapgate(nf,nu),
-	swapgate(nf,nr),swapgate(nl,nu),T,fdag(T),swapgate(nl,nu),
-	swapgate(nf,nr),swapgate(nf,nr),swapgate(nl,nu),E3,E8,E4,E6,E1,E7])
+	optcode(x) = VERTICAL_RULES(map(_arraytype(T1){ComplexF64},x)...)
+	result = optcode([T1,fdag(T1),swapgate(nl,nu),swapgate(nf,nu),
+	swapgate(nf,nr),swapgate(nl,nu),T2,fdag(T2),swapgate(nl,nu),
+	swapgate(nf,nr),swapgate(nf,nr),swapgate(nl,nu),E2,E8,E4,E6,E1,E7])
 	return result
 end
 
-function square_ipeps_contraction_horizontal(T,env)
-	nu,nl,nf,nd,nr = size(T)
+function square_ipeps_contraction_horizontal(T1,T2,env)
+	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
 	(E1,E2,E3,E4,E5,E6,E7,E8) = map(x->reshape(x,χ,nl,nl,χ),env)
 
-	optcode(x) = HORIZONTAL_RULES(map(_arraytype(T),x)...)
-	result = optcode([T,swapgate(nf,nu),
-	fdag(T),swapgate(nf,nu),swapgate(nl,nu),
+	optcode(x) = HORIZONTAL_RULES(map(_arraytype(T1){ComplexF64},x)...)
+	result = optcode([T1,swapgate(nf,nu),
+	fdag(T1),swapgate(nf,nu),swapgate(nl,nu),
 	swapgate(nl,nu),
-	fdag(T),swapgate(nf,nu),
-	swapgate(nf,nu),swapgate(nl,nu),T,
+	fdag(T2),swapgate(nf,nu),
+	swapgate(nf,nu),swapgate(nl,nu),T2,
 	swapgate(nl,nu),
 	E1,E2,E3,E4,E5,E6])
 	return result
