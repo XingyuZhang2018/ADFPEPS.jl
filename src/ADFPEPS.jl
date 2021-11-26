@@ -1,6 +1,7 @@
 module ADFPEPS
 
-# include("cuda_patch.jl")
+export HamiltonianModel,hamiltonian,Hubbard
+
 include("hamiltonianmodels.jl")
 include("fermion.jl")
 include("autodiff.jl")
