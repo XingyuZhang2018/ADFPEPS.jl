@@ -1,6 +1,7 @@
 module ADFPEPS
 
-export HamiltonianModel,hamiltonian,Hubbard
+export HamiltonianModel,hamiltonian
+export Hubbard,hop_pair
 
 include("hamiltonianmodels.jl")
 include("fermion.jl")

@@ -5,7 +5,7 @@ using Random
 
 CUDA.allowscalar(false)
 Random.seed!(100)
-model = Hubbard(1.0,0.0,0.0)
+model = hop_pair(1.0,1.0)
 folder = "E:/1 - research/4.9 - AutoDiff/data/ADFPEPS/"
 ipeps, key = init_ipeps(model; Ni = 1, Nj = 1, atype = Array, folder = folder, D=3, χ=20, tol=1e-10, maxiter=10)
 # folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
