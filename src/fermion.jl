@@ -150,7 +150,7 @@ function ipeps_enviroment(T::AbstractArray, model;χ=20,maxiter=20,show_every=In
 	Ni, Nj = size(T)
 	b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, verbose=true, savefile= true, infolder=infolder*"/$(model)_$(Ni)x$(Nj)/", outfolder=outfolder*"/$(model)_$(Ni)x$(Nj)/", downfromup = false, show_every=Inf)
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, verbose=true, savefile= true, infolder=infolder*"/$(model)_$(Ni)x$(Nj)/", outfolder=outfolder*"/$(model)_$(Ni)x$(Nj)/", downfromup = true, show_every=Inf)
 
 	E1 = FLo
 	E2 = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -170,8 +170,8 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 	etol = 0
 	
 	atype = _arraytype(E1[1,1]){ComplexF64}
-	hx = reshape(atype(-abs.(hamiltonian(model))), 4, 4, 4, 4)
-	hy = reshape(atype(-abs.(hamiltonian(model))), 4, 4, 4, 4)
+	hx = reshape(atype(hop_pair_hand(1.0,1.0)), 4, 4, 4, 4)
+	hy = reshape(atype(hop_pair_hand(1.0,-1.0)), 4, 4, 4, 4)
 	# occ = reshape(atype(hamiltonian(Occupation())), 4, 4, 4, 4)
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i

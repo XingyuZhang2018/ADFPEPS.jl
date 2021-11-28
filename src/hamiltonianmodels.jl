@@ -1,6 +1,10 @@
 using ITensors
 using OMEinsum
 
+const Cup = [0.0 1 0 0; 0 0 0 0; 0 0 0 1; 0 0 0 0]
+const Cdn = [0.0 0 1 0; 0 0 0 1; 0 0 0 0; 0 0 0 0]
+const Nup = [0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]
+const Ndn = [0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1]
 abstract type HamiltonianModel end
 
 @doc raw"
@@ -117,5 +121,23 @@ function hamiltonian(model::hop_pair)
     h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
 
     return h
+end
+
+function Hubbard_hand(t::T,U::T,μ::T) where T <: Real
+    H = zeros(4,4,4,4)
+    H .+= -t * (ein"ab,cd -> acbd"(Cup',Cup) .+ ein"ab,cd -> acbd"(Cup,Cup'))
+    H .+= -t * (ein"ab,cd -> acbd"(Cdn',Cdn) .+ ein"ab,cd -> acbd"(Cdn,Cdn'))
+    H .+= U/4 * (ein"ab,cd -> acbd"(Nup*Ndn,I(4)) .+ ein"ab,cd -> acbd"(I(4),Nup*Ndn))
+    H .+= -μ/4 * (ein"ab,cd -> acbd"(Nup.+Ndn,I(4)) .+ ein"ab,cd -> acbd"(I(4),Nup.+Ndn))
+    return reshape(H,16,16)
+end
+
+function hop_pair_hand(t::T,γ::T) where T <: Real
+    H = zeros(4,4,4,4)
+    H .+= -t * (ein"ab,cd -> acbd"(Cup',Cup) .+ ein"ab,cd -> acbd"(Cup,Cup'))
+    H .+= -t * (ein"ab,cd -> acbd"(Cdn',Cdn) .+ ein"ab,cd -> acbd"(Cdn,Cdn'))
+    H .+= γ * (ein"ab,cd -> acbd"(Cup',Cdn') .- ein"ab,cd -> acbd"(Cdn',Cup'))
+    H .+= γ * (ein"ab,cd -> acbd"(Cup,Cdn) .- ein"ab,cd -> acbd"(Cdn,Cup))
+    return reshape(H,16,16)
 end
 
