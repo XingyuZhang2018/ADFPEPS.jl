@@ -170,8 +170,8 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 	etol = 0
 	
 	atype = _arraytype(E1[1,1]){ComplexF64}
-	hx = reshape(atype(hop_pair_hand(1.0,1.0)), 4, 4, 4, 4)
-	hy = reshape(atype(hop_pair_hand(1.0,-1.0)), 4, 4, 4, 4)
+	hx = reshape(atype(Hubbard_hand(model.t,model.U,model.μ)), 4, 4, 4, 4)
+	hy = reshape(atype(Hubbard_hand(model.t,model.U,model.μ)), 4, 4, 4, 4)
 	# occ = reshape(atype(hamiltonian(Occupation())), 4, 4, 4, 4)
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i
