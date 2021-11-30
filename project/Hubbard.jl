@@ -2,8 +2,6 @@ using ADFPEPS
 using ArgParse
 using CUDA
 using Random
-using CUDA
-using Random
 using Test
 using OMEinsum
 using Optim

@@ -23,7 +23,7 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
         ipeps = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
-        ipeps = rand(ComplexF64,D,D,4,D,D,Ni*Nj)
+        ipeps = rand(ComplexF64,D,D,4,D,D,Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps /= norm(ipeps)
