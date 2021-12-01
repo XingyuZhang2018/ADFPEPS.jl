@@ -24,7 +24,7 @@ struct Occupation <: HamiltonianModel end
 """
 	hamiltonian(model::Occupation)
 """
-function hamiltonian(model::Occupation)
+function hamiltonian(::Occupation)
     ampo = AutoMPO()
     sites = siteinds("Electron",2)
 
@@ -32,6 +32,33 @@ function hamiltonian(model::Occupation)
     ampo .+= "Ndn", 1
     ampo .+= "Nup", 2
     ampo .+= "Ndn", 2
+
+    H = MPO(ampo,sites)
+
+    H1 = Array(H[1],inds(H[1])...)
+    H2 = Array(H[2],inds(H[2])...)
+    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
+
+    return h/4
+end
+
+
+@doc raw"
+    DoubleOccupation()
+
+DoubleOccupation number at bond
+"
+struct DoubleOccupation <: HamiltonianModel end
+
+"""
+	hamiltonian(::DoubleOccupation)
+"""
+function hamiltonian(::DoubleOccupation)
+    ampo = AutoMPO()
+    sites = siteinds("Electron",2)
+
+    ampo .+= "Nupdn", 1
+    ampo .+= "Nupdn", 2
 
     H = MPO(ampo,sites)
 
@@ -123,7 +150,10 @@ function hamiltonian(model::hop_pair)
     return h
 end
 
-function Hubbard_hand(t::T,U::T,μ::T) where T <: Real
+function Hubbard_hand(model::Hubbard) where T <: Real
+    t = model.t
+	U = model.U
+    μ = model.μ
     H = zeros(4,4,4,4)
     H .+= -t * (ein"ab,cd -> acbd"(Cup',Cup) .+ ein"ab,cd -> acbd"(Cup,Cup'))
     H .+= -t * (ein"ab,cd -> acbd"(Cdn',Cdn) .+ ein"ab,cd -> acbd"(Cdn,Cdn'))

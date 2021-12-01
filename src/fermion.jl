@@ -174,7 +174,6 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 	atype = _arraytype(E1[1,1]){ComplexF64}
 	hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
-	# occ = reshape(atype(hamiltonian(Occupation())), 4, 4, 4, 4)
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i
 		jr = j + 1 - (j==Nj) * Nj
@@ -184,22 +183,18 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ex = ein"ijkl,ijkl -> "(ρx,hx)
-		# Occ = ein"ijkl,ijkl -> "(ρx,occ)
 		nx = ein"ijij -> "(ρx)
 		etol += Array(Ex)[]/Array(nx)[]
 		println("─ = $(Array(Ex)[]/Array(nx)[])") 
-		# println("N = $(Array(Occ)[]/Array(nx)[])")
 
         ey = (E1[ir,j],E2[i,j],E3[i,j],E4[ir,j],E5[ir,jr],E6[i,j],E7[i,j],E8[i,j])
 		ρy = square_ipeps_contraction_vertical(T[i,j],T[ir,j],ey)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ey = ein"ijkl,ijkl -> "(ρy,hy)
-		# Occ = ein"ijkl,ijkl -> "(ρy,occ)
 		ny = ein"ijij -> "(ρy)
 		etol += Array(Ey)[]/Array(ny)[]
 		println("│ = $(Array(Ey)[]/Array(ny)[])")
-		# println("N = $(Array(Occ)[]/Array(ny)[])")
 	end
 
 	return real(etol)/Ni/Nj
