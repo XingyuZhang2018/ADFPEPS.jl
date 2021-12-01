@@ -58,3 +58,8 @@ end
     H = hop_pair_hand(rand(),rand()) 
     @test H == H'                                                                                                            
 end
+
+@testset "observable" begin
+    @test hamiltonian(Occupation()) == [0.0 0.0 0.0 0.0; 0.0 1.0 0.0 0.0; 0.0 0.0 1.0 0.0; 0.0 0.0 0.0 2.0]
+    @test hamiltonian(DoubleOccupation()) == [0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 1.0]
+end

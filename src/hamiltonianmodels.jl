@@ -15,59 +15,11 @@ return the hamiltonian of the `model` as a two-site tensor operator.
 function hamiltonian end
 
 @doc raw"
-    Occupation()
+    hamiltonian(model<:HamiltonianModel)
 
-Occupation number at bond
+return the hamiltonian of the `model` as a two-site tensor operator.
 "
-struct Occupation <: HamiltonianModel end
-
-"""
-	hamiltonian(model::Occupation)
-"""
-function hamiltonian(::Occupation)
-    ampo = AutoMPO()
-    sites = siteinds("Electron",2)
-
-    ampo .+= "Nup", 1
-    ampo .+= "Ndn", 1
-    ampo .+= "Nup", 2
-    ampo .+= "Ndn", 2
-
-    H = MPO(ampo,sites)
-
-    H1 = Array(H[1],inds(H[1])...)
-    H2 = Array(H[2],inds(H[2])...)
-    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
-
-    return h/4
-end
-
-
-@doc raw"
-    DoubleOccupation()
-
-DoubleOccupation number at bond
-"
-struct DoubleOccupation <: HamiltonianModel end
-
-"""
-	hamiltonian(::DoubleOccupation)
-"""
-function hamiltonian(::DoubleOccupation)
-    ampo = AutoMPO()
-    sites = siteinds("Electron",2)
-
-    ampo .+= "Nupdn", 1
-    ampo .+= "Nupdn", 2
-
-    H = MPO(ampo,sites)
-
-    H1 = Array(H[1],inds(H[1])...)
-    H2 = Array(H[2],inds(H[2])...)
-    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
-
-    return h/4
-end
+function hamiltonian end
 
 @doc raw"
     Hubbard(t::Real,U::Real,μ::Real)

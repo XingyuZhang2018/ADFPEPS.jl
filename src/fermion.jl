@@ -131,10 +131,24 @@ function bulk(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T)
 	# u l s d r
-	# eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,10,11),(4,9,12,13)),(1,11,10,7,8,12,13,5))
 	eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,12,13),(4,9,10,11)),(13,1,7,12,8,10,11,5))
 	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
 	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S,S)),nu^2,nl^2,nd^2,nr^2))
+end
+
+"""
+    function bulkop(T::Array{V,5}) where V<: Number
+    
+Obtain bulk tensor in peps, while the input tensor has indices which labeled by (lurdf).
+This tensor is ready for GCTMRG (general CTMRG) algorithm
+"""
+function bulkop(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
+	nu,nl,nf,nd,nr = size(T)
+	Tdag = fdag(T)
+	# u l s d r
+	eincode = EinCode(((1,2,3,4,5),(6,7,14,8,9),(2,6,12,13),(4,9,10,11)),(13,1,7,12,8,10,11,5,3,14))
+	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
+	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S,S)),nu^2,nl^2,nd^2,nr^2,nf,nf))
 end
 
 """
@@ -171,9 +185,12 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(T,model,χ=χ,maxiter=maxiter,show_every=show_every;infolder=infolder,outfolder=outfolder)
 	etol = 0
 	
+	# op = reshape([permutedims(bulkop(T[i]),(2,3,4,1,5,6)) for i = 1:Ni*Nj], (Ni, Nj))
 	atype = _arraytype(E1[1,1]){ComplexF64}
 	hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
+	# hocc = atype(hamiltonian(Occupation()))
+	# hdoubleocc = atype(hamiltonian(DoubleOccupation()))
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i
 		jr = j + 1 - (j==Nj) * Nj
@@ -195,6 +212,15 @@ function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1
 		ny = ein"ijij -> "(ρy)
 		etol += Array(Ey)[]/Array(ny)[]
 		println("│ = $(Array(Ey)[]/Array(ny)[])")
+
+		# ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(E1[i,j],E2[i,j],op[i,j],E6[ir,j],E4[i,j])
+		# Occ = ein"pq,pq -> "(ρ,hocc)
+		# DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
+		# n = Array(ein"pp -> "(ρ))[]
+		# etol += -model.μ * Array(Occ)[]/n
+		# println("N = $(Array(Occ)[]/n)")
+		# etol +=  model.U * Array(DoubleOcc)[]/n
+		# println("DN = $(Array(DoubleOcc)[]/n)")
 	end
 
 	return real(etol)/Ni/Nj
