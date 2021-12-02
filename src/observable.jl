@@ -31,8 +31,12 @@ function observable(model, atype, folder, D, χ, tol=1e-10, maxiter=10)
 
         hocc = atype([0.0 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 2])
         hdoubleocc = atype([0.0 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 1])
-        hNup = atype([0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1])
-        hNdn = atype([0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1])
+        Nzup = atype([0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1])
+        Nzdn = atype([0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1])
+        Nxup = atype([0.0 0 0 0; 0 1  1 0; 0  1 1 0; 0 0 0 2]./2)
+        Nxdn = atype([0.0 0 0 0; 0 1 -1 0; 0 -1 1 0; 0 1 1 2]./2)
+        Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
+        Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 1 1 2]./2)
         occ = 0
         doubleocc = 0
         for j = 1:Nj, i = 1:Ni
@@ -41,15 +45,23 @@ function observable(model, atype, folder, D, χ, tol=1e-10, maxiter=10)
             ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(FLo[i,j],ACu[i,j],op[i,j],ACd[ir,j],FRo[i,j])
             Occ = ein"pq,pq -> "(ρ,hocc)
             DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
-            NNup = ein"pq,pq -> "(ρ,hNup)
-            NNdn = ein"pq,pq -> "(ρ,hNdn)
+            NNzup = ein"pq,pq -> "(ρ,Nzup)
+            NNzdn = ein"pq,pq -> "(ρ,Nzdn)
+            NNxup = ein"pq,pq -> "(ρ,Nxup)
+            NNxdn = ein"pq,pq -> "(ρ,Nxdn)
+            NNyup = ein"pq,pq -> "(ρ,Nyup)
+            NNydn = ein"pq,pq -> "(ρ,Nydn)
             n = ein"pp -> "(ρ) 
             occ += Array(Occ)[]/Array(n)[]
             doubleocc += Array(DoubleOcc)[]/Array(n)[]
             println("N = $(Array(Occ)[]/Array(n)[])")
             println("DN = $(Array(DoubleOcc)[]/Array(n)[])")
-            println("Nup = $(Array(NNup)[]/Array(n)[])")
-            println("Ndn = $(Array(NNdn)[]/Array(n)[])")
+            println("Nz↑ = $(Array(NNzup)[]/Array(n)[])")
+            println("Nz↓ = $(Array(NNzdn)[]/Array(n)[])")
+            println("Nx↑ = $(Array(NNxup)[]/Array(n)[])")
+            println("Nx↓ = $(Array(NNxdn)[]/Array(n)[])")
+            println("Ny↑ = $(Array(NNyup)[]/Array(n)[])")
+            println("Ny↓ = $(Array(NNydn)[]/Array(n)[])")
         end
 
         occ = real(occ)/Ni/Nj
