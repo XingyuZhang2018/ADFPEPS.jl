@@ -65,6 +65,49 @@ function hamiltonian(model::Hubbard)
     return h
 end
 
+@doc raw"
+    THubbard(t::Real,U::Real,μ::Real)
+
+return a struct representing THubbard model
+"
+struct THubbard{T<:Real} <: HamiltonianModel
+    t::T
+	U::T
+    μ::T
+end
+
+"""
+	hamiltonian(model::Hubbard)
+"""
+function hamiltonian(model::THubbard)
+	t = model.t
+	U = model.U
+    μ = model.μ
+    ampo = AutoMPO()
+    sites = siteinds("Electron",2)
+    ampo .+= -t, "Cdagup",1,"Cdn",2
+    ampo .+= -t, "Cdagdn",2,"Cup",1
+    ampo .+= t, "Cdagdn",1,"Cup",2
+    ampo .+= t, "Cdagup",2,"Cdn",1
+    
+    if U ≠ 0
+        ampo .+= 1/4*U, "Nupdn", 1
+        ampo .+= 1/4*U, "Nupdn", 2
+    end
+    if μ ≠ 0
+        ampo .+= -1/4*μ, "Nup", 1
+        ampo .+= -1/4*μ, "Ndn", 1
+        ampo .+= -1/4*μ, "Nup", 2
+        ampo .+= -1/4*μ, "Ndn", 2
+    end
+    H = MPO(ampo,sites)
+
+    H1 = Array(H[1],inds(H[1])...)
+    H2 = Array(H[2],inds(H[2])...)
+    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
+
+    return h
+end
 
 @doc raw"
     hop_pair(t::Real,γ::Real)
