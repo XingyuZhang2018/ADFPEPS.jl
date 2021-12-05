@@ -45,12 +45,12 @@ function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
         hy = reshape(atype(hamiltonian(Hubbard(model.t,model.U,model.μ))), 4, 4, 4, 4)
         # hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
         # hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
-        UniformT = diagm(ones(16))
-        for i in [7,8,12]
-            UniformT[i,i] = -1.0
-        end
-        # UniformT = [1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1]
-        # UniformT = reshape(ein"ab,cd -> acbd"(UniformT,I(4)),16,16)
+        # UniformT = diagm(ones(16))
+        # for i in [7,8,12]
+        #     UniformT[i,i] = -1.0
+        # end
+        UniformT = [1 0 0 0;0 0 1 0;0 1 0 0;0 0 0 -1]
+        UniformT = reshape(ein"ab,cd -> acbd"(I(4),UniformT),16,16)
         UniformT = reshape(UniformT,4,4,4,4)
         occ1,occ2 = 0,0
         doubleocc1,doubleocc2 = 0,0
@@ -69,7 +69,7 @@ function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
             jr = j + 1 - (j==Nj) * Nj
             ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j],E7[i,j],E8[i,j])
             ρx = square_ipeps_contraction_horizontal(T[i,j],T[i,jr],ex)
-            ρx = ein"abcd,abgh,ghef -> cdef"(UniformT, ρx, UniformT)
+            ρx = ein"abcd,cdef,efgh -> abgh"(UniformT, ρx, UniformT)
             nx = ein"ijij -> "(ρx) 
             Occ = opobser(ρx,hocc,nx)
             occ1 += Occ[1]
@@ -103,7 +103,7 @@ function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
 
             ey = (E1[ir,j],E2[i,j],E3[i,j],E4[ir,j],E5[ir,jr],E6[i,j],E7[i,j],E8[i,j])
             ρy = square_ipeps_contraction_vertical(T[i,j],T[ir,j],ey)
-            ρy = ein"abcd,abgh,ghef -> cdef"(UniformT, ρy, UniformT)
+            ρy = ein"abcd,cdef,efgh -> abgh"(UniformT, ρy, UniformT)
             ny = ein"ijij -> "(ρy)
             Occ = opobser(ρy,hocc,ny)
             occ1 += Occ[1]
