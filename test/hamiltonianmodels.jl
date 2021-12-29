@@ -79,9 +79,10 @@ end
     # # for i in [7,14,12]
     # #     U[i,i] = -1.0
     # # end
-    U = [1 0 0 0;0 0 1 0;0 1 0 0;0 0 0 -1]
+    U = [1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1]
     U32 = reshape(ein"ab,cd -> acbd"(U,I(4)),16,16)
     @test U32'*U32 ≈ I(16)
+    # @test U32'≈ U32
     @test S2 ≈ U32'*S3*U32
     # # U32 = map(x->abs(x) < 1e-10 ? 0.0 : x,U32)
     # # @show U

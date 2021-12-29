@@ -87,8 +87,8 @@ function hamiltonian(model::THubbard)
     sites = siteinds("Electron",2)
     ampo .+= -t, "Cdagup",1,"Cdn",2
     ampo .+= -t, "Cdagdn",2,"Cup",1
-    ampo .+= -t, "Cdagdn",1,"Cup",2
-    ampo .+= -t, "Cdagup",2,"Cdn",1
+    ampo .+= t, "Cdagdn",1,"Cup",2
+    ampo .+= t, "Cdagup",2,"Cdn",1
     
     if U ≠ 0
         ampo .+= 1/4*U, "Nupdn", 1

@@ -10,7 +10,8 @@ CUDA.allowscalar(false)
 
 @testset "parity_conserving" for atype in [Array], dtype in [ComplexF64], Ni = [2], Nj = [2]
     Random.seed!(100)
-    Nv = 2
+    Nv = 1
+    D = 2^Nv
     T = atype(rand(dtype,D,D,4,D,D,4))
     function foo(T)
         ipeps = reshape([parity_conserving(T[:,:,:,:,:,i]) for i = 1:4], (2, 2))
