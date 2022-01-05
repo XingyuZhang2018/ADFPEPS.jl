@@ -1,12 +1,15 @@
 # contains some utils for Fermionic Tensor Network Construction
+
+using BitBasis
 using CUDA
 using VUMPS
-using BitBasis
+using VUMPS: dtr
+using Zygote
 
 include("contractrules.jl")
 
-_arraytype(x::Array{T}) where {T} = Array
-_arraytype(x::CuArray{T}) where {T} = CuArray
+_arraytype(::Array{T}) where {T} = Array
+_arraytype(::CuArray{T}) where {T} = CuArray
 
 """
     parity_conserving(T::Array)
@@ -95,13 +98,12 @@ julia> swapgate(2,4)
 ```
 """
 function swapgate(n1::Int,n2::Int)
-	S = ein"ij,kl->ikjl"(Matrix{Float64}(I,n1,n1),Matrix{Float64}(I,n2,n2))
+	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,n1,n1),Matrix{ComplexF64}(I,n2,n2))
 	for j = 1:n2, i = 1:n1
 		sum(bitarray(i-1,Int(ceil(log2(n1)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(n2)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
 	end
 	return S
 end
-
 
 """
     function fdag(T::Array{V,5}) where V<:Number
@@ -117,6 +119,16 @@ function fdag(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
 	Tdag = conj(T)
 	
 	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
+	Tdag = ein"(ulfdr,luij),rdpq->jifqp"(Tdag, S, S)
+	return Tdag	
+end
+
+function fdag(T::AbstractZ2Array)
+	nu,nl,nf,nd,nr = size(T)
+	Tdag = conj(T)
+	
+	atype = _arraytype(T.tensor[1])
+	S = Zygote.@ignore atype(tensor2Z2tensor(swapgate(nl,nu)))
 	Tdag = ein"(ulfdr,luij),rdpq->jifqp"(Tdag, S, S)
 	return Tdag	
 end
@@ -160,11 +172,14 @@ end
 	f ────┴──── h 
 	order: fda,abc,dgeb,hgf,ceh
 """
-function ipeps_enviroment(T::AbstractArray, model;χ=20,maxiter=20,show_every=Inf,infolder=nothing,outfolder=nothing)
+function ipeps_enviroment(T::AbstractArray, key)
 	Ni, Nj = size(T)
 	b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
+	b = tensor2Z2tensor.(b)
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, verbose=true, savefile= true, infolder=infolder*"/$(model)_$(Ni)x$(Nj)/", outfolder=outfolder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
+	folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
+
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
 
 	E1 = FLo
 	E2 = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -174,55 +189,48 @@ function ipeps_enviroment(T::AbstractArray, model;χ=20,maxiter=20,show_every=In
 	E6 = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	E7 = FL
 	E8 = FR
-
+	# E1,E2,E3,E4,E5,E6,E7,E8 = map(x->Z2tensor2tensor.(x),[E1,E2,E3,E4,E5,E6,E7,E8])
 	return (E1,E2,E3,E4,E5,E6,E7,E8)
 end
 
 ABBA(i) = i in [1,4] ? 1 : 2
 
-function double_ipeps_energy(ipeps::AbstractArray, model::HamiltonianModel; Ni=1,Nj=1,χ=80,maxiter=20,show_every=Inf,infolder=nothing,outfolder=nothing)	
+function double_ipeps_energy(ipeps::AbstractArray, key)	
+	folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
 	T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(T,model,χ=χ,maxiter=maxiter,show_every=show_every;infolder=infolder,outfolder=outfolder)
+	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(T, key)
 	etol = 0
 	
-	# op = reshape([permutedims(bulkop(T[i]),(2,3,4,1,5,6)) for i = 1:Ni*Nj], (Ni, Nj))
-	atype = _arraytype(E1[1,1]){ComplexF64}
-	# hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
-	# hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
+	atype = _arraytype(E1[1,1].tensor[1]){ComplexF64}
+	# atype = _arraytype(E1[1,1]){ComplexF64}
 	hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
-	# hocc = atype(hamiltonian(Occupation()))
-	# hdoubleocc = atype(hamiltonian(DoubleOccupation()))
+	hx = Zygote.@ignore tensor2Z2tensor(hx)
+	hy = Zygote.@ignore tensor2Z2tensor(hy)
+	
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i
 		jr = j + 1 - (j==Nj) * Nj
 		
-		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j],E7[i,j],E8[i,j])
-		ρx = square_ipeps_contraction_horizontal(T[i,j],T[i,jr],ex)
+		Tij, Tijr, Tirj = tensor2Z2tensor.([T[i,j], T[i,jr], T[ir,j]])
+		# Tij, Tijr, Tirj = [T[i,j], T[i,jr], T[ir,j]]
+		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
+		ρx = square_ipeps_contraction_horizontal(Tij,Tijr,ex)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
-        Ex = ein"ijkl,ijkl -> "(ρx,hx)
-		nx = ein"ijij -> "(ρx)
-		etol += Array(Ex)[]/Array(nx)[]
-		println("─ = $(Array(Ex)[]/Array(nx)[])") 
+        Ex = Array(ein"ijkl,ijkl -> "(ρx,hx))[]
+		nx = dtr(ρx) # nx = ein"ijij -> "(ρx)[]
+		etol += Ex/nx
+		println("─ = $(Ex/nx)") 
 
-        ey = (E1[ir,j],E2[i,j],E3[i,j],E4[ir,j],E5[ir,jr],E6[i,j],E7[i,j],E8[i,j])
-		ρy = square_ipeps_contraction_vertical(T[i,j],T[ir,j],ey)
+        ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
+		ρy = square_ipeps_contraction_vertical(Tij,Tirj,ey)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
-        Ey = ein"ijkl,ijkl -> "(ρy,hy)
-		ny = ein"ijij -> "(ρy)
-		etol += Array(Ey)[]/Array(ny)[]
-		println("│ = $(Array(Ey)[]/Array(ny)[])")
-
-		# ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(E1[i,j],E2[i,j],op[i,j],E6[ir,j],E4[i,j])
-		# Occ = ein"pq,pq -> "(ρ,hocc)
-		# DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
-		# n = Array(ein"pp -> "(ρ))[]
-		# etol += -model.μ * Array(Occ)[]/n
-		# println("N = $(Array(Occ)[]/n)")
-		# etol +=  model.U * Array(DoubleOcc)[]/n
-		# println("DN = $(Array(DoubleOcc)[]/n)")
+        Ey = Array(ein"ijkl,ijkl -> "(ρy,hy))[]
+		ny = dtr(ρy) # ny = ein"ijij -> "(ρy)[]
+		etol += Ey/ny
+		println("│ = $(Ey/ny)")
 	end
 
 	return real(etol)/Ni/Nj
@@ -231,27 +239,33 @@ end
 function square_ipeps_contraction_vertical(T1,T2,env)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	(E1,E2,E3,E4,E5,E6,E7,E8) = map(x->reshape(x,χ,nl,nl,χ),env)
+	(E1,E2,E4,E6,E7,E8) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
 
-	optcode(x) = VERTICAL_RULES(map(_arraytype(T1){ComplexF64},x)...)
-	result = optcode([T1,fdag(T1),swapgate(nl,nu),swapgate(nf,nu),
-	swapgate(nf,nr),swapgate(nl,nu),T2,fdag(T2),swapgate(nl,nu),
-	swapgate(nf,nr),swapgate(nf,nr),swapgate(nl,nu),E2,E8,E4,E6,E1,E7])
+	atype = _arraytype(T1.tensor[1])
+	SdD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nf,nu)))
+	SDD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nl,nu)))
+	# SdD = Zygote.@ignore swapgate(nf,nu)
+	# SDD = Zygote.@ignore swapgate(nl,nu)
+	
+	optcode(x) = VERTICAL_RULES(x...)
+	result = optcode([T1,fdag(T1),SDD,SdD,SdD,SDD,T2,fdag(T2),SDD,SdD,SdD,SDD,
+	E2,E8,E4,E6,E1,E7])
 	return result
 end
 
 function square_ipeps_contraction_horizontal(T1,T2,env)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	(E1,E2,E3,E4,E5,E6,E7,E8) = map(x->reshape(x,χ,nl,nl,χ),env)
+	(E1,E2,E3,E4,E5,E6) = map(x->Z2reshape(x,χ,nl,nl,χ),env)
 
-	optcode(x) = HORIZONTAL_RULES(map(_arraytype(T1){ComplexF64},x)...)
-	result = optcode([T1,swapgate(nf,nu),
-	fdag(T1),swapgate(nf,nu),swapgate(nl,nu),
-	swapgate(nl,nu),
-	fdag(T2),swapgate(nf,nu),
-	swapgate(nf,nu),swapgate(nl,nu),T2,
-	swapgate(nl,nu),
+	atype = _arraytype(T1.tensor[1])
+	SdD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nf,nu)))
+	SDD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nl,nu)))
+	# SdD = Zygote.@ignore swapgate(nf,nu)
+	# SDD = Zygote.@ignore swapgate(nl,nu)
+	optcode(x) = HORIZONTAL_RULES(x...)
+	result = optcode([T1,SdD,fdag(T1),SdD,SDD,SDD,fdag(T2),SdD,SdD,SDD,T2,SDD,
 	E1,E2,E3,E4,E5,E6])
+
 	return result
 end

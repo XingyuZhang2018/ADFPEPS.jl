@@ -42,8 +42,8 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20)) where LT
     folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
     to = TimerOutput()
-    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), model;Ni=Ni,Nj=Nj,χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
-    ff(x) = double_ipeps_energy(atype(x), model;Ni=Ni,Nj=Nj,χ=χ,maxiter=maxiter,infolder=folder,outfolder=folder)
+    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), key)
+    ff(x) = double_ipeps_energy(atype(x), key)
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps, optimmethod,inplace = false,
@@ -67,7 +67,7 @@ function writelog(os::OptimizationState, key=nothing)
     flush(stdout)
 
     folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
-    !(isdir(folder*"$(model)_$(Ni)x$(Nj)/")) && mkdir(folder*"$(model)_$(Ni)x$(Nj)/")
+    !(isdir(folder*"/$(model)_$(Ni)x$(Nj)/")) && mkdir(folder*"/$(model)_$(Ni)x$(Nj)/")
     if !(key === nothing)
         logfile = open(folder*"$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
         write(logfile, message)
