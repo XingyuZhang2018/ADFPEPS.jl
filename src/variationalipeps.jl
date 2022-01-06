@@ -14,8 +14,8 @@ export optimiseipeps
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/", atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
-    key = (folder, model, Ni, Nj, atype, D, χ, tol, maxiter)
+function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/", symmetry = :none, atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
+    key = (folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter)
     folder = folder*"/$(model)_$(Ni)x$(Nj)/"
     mkpath(folder)
     chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
@@ -40,7 +40,7 @@ providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20)) where LT
-    folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
+    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     to = TimerOutput()
     f(x) = @timeit to "forward" double_ipeps_energy(atype(x), key)
     ff(x) = double_ipeps_energy(atype(x), key)
@@ -66,7 +66,7 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
+    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     !(isdir(folder*"/$(model)_$(Ni)x$(Nj)/")) && mkdir(folder*"/$(model)_$(Ni)x$(Nj)/")
     if !(key === nothing)
         logfile = open(folder*"$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")

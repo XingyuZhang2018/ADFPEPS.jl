@@ -15,13 +15,6 @@ return the hamiltonian of the `model` as a two-site tensor operator.
 function hamiltonian end
 
 @doc raw"
-    hamiltonian(model<:HamiltonianModel)
-
-return the hamiltonian of the `model` as a two-site tensor operator.
-"
-function hamiltonian end
-
-@doc raw"
     Hubbard(t::Real,U::Real,μ::Real)
 
 return a struct representing Hubbard model
