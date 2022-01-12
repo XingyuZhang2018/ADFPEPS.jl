@@ -114,23 +114,12 @@ legs are counting from f and clockwisely.
 input legs order: ulfdr
 output legs order: ulfdr
 """
-function fdag(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
-	nu,nl,nf,nd,nr = size(T)
-	Tdag = conj(T)
-	
-	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
-	Tdag = ein"(ulfdr,luij),rdpq->jifqp"(Tdag, S, S)
-	return Tdag	
+function fdag(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
+	ein"(ulfdr,luij),rdpq->jifqp"(conj(T), SDD, SDD)
 end
 
-function fdag(T::AbstractZ2Array)
-	nu,nl,nf,nd,nr = size(T)
-	Tdag = conj(T)
-	
-	atype = _arraytype(T.tensor[1])
-	S = Zygote.@ignore atype(tensor2Z2tensor(swapgate(nl,nu)))
-	Tdag = ein"(ulfdr,luij),rdpq->jifqp"(Tdag, S, S)
-	return Tdag	
+function fdag(T::AbstractZ2Array, SDD::AbstractZ2Array)
+	ein"(ulfdr,luij),rdpq->jifqp"(conj(T), SDD, SDD)
 end
 
 """
@@ -139,13 +128,16 @@ end
 Obtain bulk tensor in peps, while the input tensor has indices which labeled by (lurdf).
 This tensor is ready for GCTMRG (general CTMRG) algorithm
 """
-function bulk(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
+function bulk(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
 	nu,nl,nf,nd,nr = size(T)
-	Tdag = fdag(T)
-	# u l s d r
-	eincode = EinCode(((1,2,3,4,5),(6,7,3,8,9),(2,6,12,13),(4,9,10,11)),(13,1,7,12,8,10,11,5))
-	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
-	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S,S)),nu^2,nl^2,nd^2,nr^2))
+	Tdag = fdag(T, SDD)
+	return	_arraytype(T)(reshape(ein"((abcde,fgchi),bflm),dijk -> glhjkema"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2))
+end
+
+function bulk(T::AbstractZ2Array, SDD::AbstractZ2Array)
+	nu,nl,nf,nd,nr = size(T)
+	Tdag = fdag(T, SDD)
+	return Z2reshape(ein"((abcde,fgchi),bflm),dijk -> glhjkema"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2)
 end
 
 """
@@ -154,13 +146,10 @@ end
 Obtain bulk tensor in peps, while the input tensor has indices which labeled by (lurdf).
 This tensor is ready for GCTMRG (general CTMRG) algorithm
 """
-function bulkop(T::Union{Array{V,5},CuArray{V,5}}) where V<:Number
+function bulkop(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
 	nu,nl,nf,nd,nr = size(T)
-	Tdag = fdag(T)
-	# u l s d r
-	eincode = EinCode(((1,2,3,4,5),(6,7,14,8,9),(2,6,12,13),(4,9,10,11)),(13,1,7,12,8,10,11,5,3,14))
-	S = _arraytype(T){ComplexF64}(swapgate(nl,nu))
-	return	_arraytype(T)(reshape(einsum(eincode,(T,Tdag,S,S)),nu^2,nl^2,nd^2,nr^2,nf,nf))
+	Tdag = fdag(T, SDD)
+	return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
 end
 
 """
@@ -170,15 +159,13 @@ end
 	├─ d ─┼─ e ─┤ 
 	│     g     │ 
 	f ────┴──── h 
-	order: fda,abc,dgeb,hgf,ceh
+	order: adf,abc,dgeb,fgh,ceh
 """
-function ipeps_enviroment(T::AbstractArray, key)
+function ipeps_enviroment(M::AbstractArray, key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-	Ni, Nj = size(T)
-	b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
-	symmetry == :Z2 && (b = tensor2Z2tensor.(b))
+
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(b; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
 
 	E1 = FLo
 	E2 = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -188,7 +175,7 @@ function ipeps_enviroment(T::AbstractArray, key)
 	E6 = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	E7 = FL
 	E8 = FR
-	# E1,E2,E3,E4,E5,E6,E7,E8 = map(x->Z2tensor2tensor.(x),[E1,E2,E3,E4,E5,E6,E7,E8])
+
 	return (E1,E2,E3,E4,E5,E6,E7,E8)
 end
 
@@ -197,24 +184,33 @@ ABBA(i) = i in [1,4] ? 1 : 2
 function double_ipeps_energy(ipeps::AbstractArray, key)	
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
 	T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(T, key)
-	etol = 0
+	SdD = Zygote.@ignore atype(swapgate(4, D))
+	SDD = Zygote.@ignore atype(swapgate(D, D))
+	# M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
+	if symmetry == :Z2 
+		SdD, SDD = map(tensor2Z2tensor, [SdD, SDD])
+		T = map(tensor2Z2tensor, T)
+		# M = map(tensor2Z2tensor, M)
+	end
+	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
+
+	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
 	
-	atype = _arraytype(T[1,1]){ComplexF64}
-	hx = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
-	hy = reshape(atype(hamiltonian(model)), 4, 4, 4, 4)
+	hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
 	if symmetry == :Z2
 		hx = Zygote.@ignore tensor2Z2tensor(hx)
 		hy = Zygote.@ignore tensor2Z2tensor(hy)
 	end
 
+	etol = 0
 	for j = 1:Nj, i = 1:Ni
 		ir = Ni + 1 - i
 		jr = j + 1 - (j==Nj) * Nj
 		
-		Tij, Tijr, Tirj = symmetry == :Z2 ? tensor2Z2tensor.([T[i,j], T[i,jr], T[ir,j]]) : [T[i,j], T[i,jr], T[ir,j]]
+		Tij, Tijr, Tirj = T[i,j], T[i,jr], T[ir,j]
 		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
-		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, ex, symmetry)
+		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex, symmetry)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ex = ein"ijkl,ijkl -> "(ρx,hx)[]
@@ -223,7 +219,7 @@ function double_ipeps_energy(ipeps::AbstractArray, key)
 		println("─ = $(Ex/nx)") 
 
         ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
-		ρy = square_ipeps_contraction_vertical(Tij, Tirj, ey, symmetry)
+		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey, symmetry)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ey = ein"ijkl,ijkl -> "(ρy,hy)[]
@@ -235,42 +231,28 @@ function double_ipeps_energy(ipeps::AbstractArray, key)
 	return real(etol)/Ni/Nj
 end
 
-function square_ipeps_contraction_vertical(T1, T2, env, symmetry)
+function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, symmetry)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
 	if symmetry == :Z2
 		(E1,E2,E4,E6,E7,E8) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-		atype = _arraytype(T1.tensor[1])
-		SdD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nf,nu)))
-		SDD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nl,nu)))
 	else
 		(E1,E2,E4,E6,E7,E8) = map(x->reshape(x,(χ,nl,nl,χ)),env)
-		atype = _arraytype(T1)
-		SdD = Zygote.@ignore atype(swapgate(nf,nu))
-		SDD = Zygote.@ignore atype(swapgate(nl,nu))
 	end
-	
-	result = VERTICAL_RULES(T1,fdag(T1),SDD,SdD,SdD,SDD,T2,fdag(T2),SDD,SdD,SdD,SDD,
+	result = VERTICAL_RULES(T1,fdag(T1, SDD),SDD,SdD,SdD,SDD,T2,fdag(T2, SDD),SDD,SdD,SdD,SDD,
 	E2,E8,E4,E6,E1,E7)
 	return result
 end
 
-function square_ipeps_contraction_horizontal(T1, T2, env, symmetry)
+function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env, symmetry)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
 	if symmetry == :Z2
 		(E1,E2,E3,E4,E5,E6) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-		atype = _arraytype(T1.tensor[1])
-		SdD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nf,nu)))
-		SDD = Zygote.@ignore tensor2Z2tensor(atype(swapgate(nl,nu)))
 	else
 		(E1,E2,E3,E4,E5,E6) = map(x->reshape(x,(χ,nl,nl,χ)),env)
-		atype = _arraytype(T1)
-		SdD = Zygote.@ignore atype(swapgate(nf,nu))
-		SDD = Zygote.@ignore atype(swapgate(nl,nu))
 	end
-
-	result = HORIZONTAL_RULES(T1,SdD,fdag(T1),SdD,SDD,SDD,fdag(T2),SdD,SdD,SDD,T2,SDD,
+	result = HORIZONTAL_RULES(T1,SdD,fdag(T1, SDD),SdD,SDD,SDD,fdag(T2, SDD),SdD,SdD,SDD,T2,SDD,
 	E1,E2,E3,E4,E5,E6)
 	return result
 end

@@ -25,7 +25,7 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
     else
         ipeps = rand(ComplexF64,D,D,4,D,D,Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
-    end
+    end 
     ipeps /= norm(ipeps)
     return ipeps, key
 end
@@ -39,7 +39,7 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20)) where LT
+function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
     folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     to = TimerOutput()
     f(x) = @timeit to "forward" double_ipeps_energy(atype(x), key)
