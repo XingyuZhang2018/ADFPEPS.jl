@@ -3,7 +3,7 @@
 using BitBasis
 using CUDA
 using VUMPS
-using VUMPS: dtr
+using VUMPS: dtr, getparity
 using Zygote
 
 include("contractrules.jl")
@@ -12,41 +12,18 @@ _arraytype(::Array{T}) where {T} = Array
 _arraytype(::CuArray{T}) where {T} = CuArray
 
 """
-    parity_conserving(T::Array)
+	T_parity_conserving(T::Array)
 
-Transform an arbitray tensor which has arbitray legs and each leg have index 1 or 2 into parity conserving form
+Transform ipeps into parity conserving form
 
-# example
-
-```julia
-julia> T = rand(2,2,2)
-2×2×2 Array{Float64, 3}:
-[:, :, 1] =
- 0.863822  0.133604
- 0.865495  0.371586
-
-[:, :, 2] =
- 0.581621  0.819325
- 0.197463  0.801167
-
-julia> parity_conserving(T)
-2×2×2 Array{Float64, 3}:
-[:, :, 1] =
- 0.863822  0.0
- 0.0       0.371586
-
-[:, :, 2] =
- 0.0       0.819325
- 0.197463  0.0
-```
 """
-function parity_conserving(T::Union{Array,CuArray}) where V<:Real
+function T_parity_conserving(T::AbstractArray)
 	s = size(T)
 	p = zeros(s)
-	bits = map(x -> Int(ceil(log2(x))), s)
+	bit = ceil(Int, log2(s[3]))
 	for index in CartesianIndices(T)
-		i = Tuple(index) .- 1
-		sum(sum.(bitarray.(i,bits))) % 2 == 0 && (p[index] = 1)
+		i = index.I .- 1
+		sum((sum(bitarray(i[3],bit)), sum(i[[1,2,4,5]]))) % 2 == 0 && (p[index] = 1)
 	end
 	p = _arraytype(T)(p)
 
@@ -97,12 +74,71 @@ julia> swapgate(2,4)
  0  0  0  1
 ```
 """
-function swapgate(n1::Int,n2::Int)
-	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,n1,n1),Matrix{ComplexF64}(I,n2,n2))
-	for j = 1:n2, i = 1:n1
-		sum(bitarray(i-1,Int(ceil(log2(n1)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(n2)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
+function swapgatedD(d::Int, D::Int)
+	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,d,d),Matrix{ComplexF64}(I,D,D))
+	for j = 1:D, i = 1:d
+		sum(bitarray(i-1,Int(ceil(log2(d)))))%2 != 0 && (j-1) % 2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
 	end
 	return S
+end
+
+function swapgateDD(D::Int)
+	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,D,D),Matrix{ComplexF64}(I,D,D))
+	for j = 1:D, i = 1:D
+		(i-1) % 2 != 0 && (j-1) % 2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
+	end
+	return S
+end
+
+function Z2bitselectiond(maxN::Int)
+    q = [sum(bitarray(i-1,ceil(Int,log2(maxN)))) % 2 for i = 1:maxN]
+    return [(q .== 0),(q .== 1)]
+end
+
+function Z2bitselectionD(maxN::Int)
+    q = [(i-1) % 2 for i = 1:maxN]
+    return [(q .== 0),(q .== 1)]
+end
+
+function Z2t(A::Z2tensor{T,N}) where {T,N}
+    atype = _arraytype(A.tensor[1])
+    tensor = zeros(T, size(A))
+    parity = A.parity
+    qlist = [i == 3 ? Z2bitselectiond(size(A)[i]) : Z2bitselectionD(size(A)[i]) for i = 1:N]
+    for i in 1:length(parity)
+        tensor[[qlist[j][parity[i][j]+1] for j = 1:N]...] = Array(A.tensor[i])
+    end
+    atype(tensor)
+end
+
+function t2Z(A::AbstractArray{T,N}) where {T,N}
+    atype = _arraytype(A)
+    Aarray = Array(A)
+    qlist = [i == 3 ? Z2bitselectiond(size(A)[i]) : Z2bitselectionD(size(A)[i]) for i = 1:N]
+    parity = getparity(N)
+    tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
+    dims = map(x -> [size(x)...], tensor)
+    Z2tensor(parity, tensor, size(A), dims, 1)
+end
+
+function t2ZSdD(A::AbstractArray{T,N}) where {T,N}
+    atype = _arraytype(A)
+    Aarray = Array(A)
+    qlist = [i in [1,3] ? Z2bitselectiond(size(A)[i]) : Z2bitselectionD(size(A)[i]) for i = 1:N]
+    parity = getparity(N)
+    tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
+    dims = map(x -> [size(x)...], tensor)
+    Z2tensor(parity, tensor, size(A), dims, 1)
+end
+
+function t2ZSDD(A::AbstractArray{T,N}) where {T,N}
+    atype = _arraytype(A)
+    Aarray = Array(A)
+    qlist = [Z2bitselectionD(size(A)[i]) for i = 1:N]
+    parity = getparity(N)
+    tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
+    dims = map(x -> [size(x)...], tensor)
+    Z2tensor(parity, tensor, size(A), dims, 1)
 end
 
 """
@@ -150,109 +186,4 @@ function bulkop(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T, SDD)
 	return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
-end
-
-"""
-	calculate enviroment (E1...E6)
-	a ────┬──── c 
-	│     b     │ 
-	├─ d ─┼─ e ─┤ 
-	│     g     │ 
-	f ────┴──── h 
-	order: adf,abc,dgeb,fgh,ceh
-"""
-function ipeps_enviroment(M::AbstractArray, key)
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-
-	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
-
-	E1 = FLo
-	E2 = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
-	E3 = ARu
-	E4 = FRo
-	E5 = ARd
-	E6 = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
-	E7 = FL
-	E8 = FR
-
-	return (E1,E2,E3,E4,E5,E6,E7,E8)
-end
-
-ABBA(i) = i in [1,4] ? 1 : 2
-
-function double_ipeps_energy(ipeps::AbstractArray, key)	
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-	T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	SdD = Zygote.@ignore atype(swapgate(4, D))
-	SDD = Zygote.@ignore atype(swapgate(D, D))
-	# M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
-	if symmetry == :Z2 
-		SdD, SDD = map(tensor2Z2tensor, [SdD, SDD])
-		T = map(tensor2Z2tensor, T)
-		# M = map(tensor2Z2tensor, M)
-	end
-	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
-
-	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
-	
-	hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-	if symmetry == :Z2
-		hx = Zygote.@ignore tensor2Z2tensor(hx)
-		hy = Zygote.@ignore tensor2Z2tensor(hy)
-	end
-
-	etol = 0
-	for j = 1:Nj, i = 1:Ni
-		ir = Ni + 1 - i
-		jr = j + 1 - (j==Nj) * Nj
-		
-		Tij, Tijr, Tirj = T[i,j], T[i,jr], T[ir,j]
-		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
-		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex, symmetry)
-		# ρ1 = reshape(ρ,16,16)
-		# @show norm(ρ1-ρ1')
-        Ex = ein"ijkl,ijkl -> "(ρx,hx)[]
-		nx = dtr(ρx) # nx = ein"ijij -> "(ρx)
-		etol += Ex/nx
-		println("─ = $(Ex/nx)") 
-
-        ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
-		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey, symmetry)
-		# ρ1 = reshape(ρ,16,16)
-		# @show norm(ρ1-ρ1')
-        Ey = ein"ijkl,ijkl -> "(ρy,hy)[]
-		ny = dtr(ρy) # ny = ein"ijij -> "(ρy)[]
-		etol += Ey/ny
-		println("│ = $(Ey/ny)")
-	end
-
-	return real(etol)/Ni/Nj
-end
-
-function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, symmetry)
-	nu,nl,nf,nd,nr = size(T1)
-	χ = size(env[1])[1]
-	if symmetry == :Z2
-		(E1,E2,E4,E6,E7,E8) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-	else
-		(E1,E2,E4,E6,E7,E8) = map(x->reshape(x,(χ,nl,nl,χ)),env)
-	end
-	result = VERTICAL_RULES(T1,fdag(T1, SDD),SDD,SdD,SdD,SDD,T2,fdag(T2, SDD),SDD,SdD,SdD,SDD,
-	E2,E8,E4,E6,E1,E7)
-	return result
-end
-
-function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env, symmetry)
-	nu,nl,nf,nd,nr = size(T1)
-	χ = size(env[1])[1]
-	if symmetry == :Z2
-		(E1,E2,E3,E4,E5,E6) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-	else
-		(E1,E2,E3,E4,E5,E6) = map(x->reshape(x,(χ,nl,nl,χ)),env)
-	end
-	result = HORIZONTAL_RULES(T1,SdD,fdag(T1, SDD),SdD,SDD,SDD,fdag(T2, SDD),SdD,SdD,SDD,T2,SDD,
-	E1,E2,E3,E4,E5,E6)
-	return result
 end

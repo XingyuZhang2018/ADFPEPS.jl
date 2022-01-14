@@ -9,6 +9,90 @@ export init_ipeps
 export optimiseipeps
 
 """
+	calculate enviroment (E1...E6)
+	a ────┬──── c 
+	│     b     │ 
+	├─ d ─┼─ e ─┤ 
+	│     g     │ 
+	f ────┴──── h 
+	order: adf,abc,dgeb,fgh,ceh
+"""
+function ipeps_enviroment(M::AbstractArray, key)
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+
+	# VUMPS
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
+
+	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
+	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
+	return FLo, ACu, ARu, FRo, ARd, ACd, FL, FR
+end
+
+ABBA(i) = i in [1,4] ? 1 : 2
+
+function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+    SdD, SDD, hx, hy = consts
+	T = reshape([T_parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
+	symmetry == :Z2 && (T = map(t2Z, T))
+	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
+	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
+
+	etol = 0
+	for j = 1:Nj, i = 1:Ni
+		ir = Ni + 1 - i
+		jr = j + 1 - (j==Nj) * Nj
+		
+		Tij, Tijr, Tirj = T[i,j], T[i,jr], T[ir,j]
+		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
+		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex, symmetry)
+		# ρ1 = reshape(ρ,16,16)
+		# @show norm(ρ1-ρ1')
+        Ex = ein"ijkl,ijkl -> "(ρx,hx)[]
+		nx = dtr(ρx) # nx = ein"ijij -> "(ρx)
+		etol += Ex/nx
+		println("─ = $(Ex/nx)") 
+
+        ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
+		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey, symmetry)
+		# ρ1 = reshape(ρ,16,16)
+		# @show norm(ρ1-ρ1')
+        Ey = ein"ijkl,ijkl -> "(ρy,hy)[]
+		ny = dtr(ρy) # ny = ein"ijij -> "(ρy)[]
+		etol += Ey/ny
+		println("│ = $(Ey/ny)")
+	end
+
+	return real(etol)/Ni/Nj
+end
+
+function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, symmetry)
+	nu,nl,nf,nd,nr = size(T1)
+	χ = size(env[1])[1]
+	if symmetry == :Z2
+		(E1,E2,E4,E6,E7,E8) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
+	else
+		(E1,E2,E4,E6,E7,E8) = map(x->reshape(x,(χ,nl,nl,χ)),env)
+	end
+	result = VERTICAL_RULES(T1,fdag(T1, SDD),SDD,SdD,SdD,SDD,T2,fdag(T2, SDD),SDD,SdD,SdD,SDD,
+	E2,E8,E4,E6,E1,E7)
+	return result
+end
+
+function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env, symmetry)
+	nu,nl,nf,nd,nr = size(T1)
+	χ = size(env[1])[1]
+	if symmetry == :Z2
+		(E1,E2,E3,E4,E5,E6) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
+	else
+		(E1,E2,E3,E4,E5,E6) = map(x->reshape(x,(χ,nl,nl,χ)),env)
+	end
+	result = HORIZONTAL_RULES(T1,SdD,fdag(T1, SDD),SdD,SDD,SDD,fdag(T2, SDD),SdD,SdD,SDD,T2,SDD,
+	E1,E2,E3,E4,E5,E6)
+	return result
+end
+
+"""
     init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int)
 
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
@@ -41,9 +125,20 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
     folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+	SdD = Zygote.@ignore atype(swapgatedD(4, D))
+	SDD = Zygote.@ignore atype(swapgateDD(D))
+    hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+    if symmetry == :Z2
+        SdD = t2ZSdD(SdD)
+        SDD = t2ZSDD(SDD)
+        hx = tensor2Z2tensor(hx)
+		hy = tensor2Z2tensor(hy)
+    end
+    consts = (SdD, SDD, hx, hy)
     to = TimerOutput()
-    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), key)
-    ff(x) = double_ipeps_energy(atype(x), key)
+    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), consts, key)
+    ff(x) = double_ipeps_energy(atype(x), consts, key)
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps, optimmethod,inplace = false,
