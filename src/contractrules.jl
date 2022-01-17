@@ -1,4 +1,3 @@
-
 using OMEinsum
 using OMEinsumContractionOrders
 using Random
