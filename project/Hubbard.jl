@@ -70,7 +70,7 @@ function main()
     t = parsed_args["t"]
     U = parsed_args["U"]
     μ = parsed_args["mu"]
-    ipeps, key = init_ipeps(Hubbard(t,U,μ); Ni = 2, Nj = 2, atype = CuArray, folder = folder, D=D, χ=χ, tol=tol, maxiter=maxiter)
+    ipeps, key = init_ipeps(Hubbard(t,U,μ); Ni = 2, Nj = 2, symmetry = :Z2, atype = CuArray, folder = folder, D=D, χ=χ, tol=tol, maxiter=maxiter)
     optimiseipeps(ipeps, key; f_tol = f_tol, opiter = opiter, verbose = true)
 end
 

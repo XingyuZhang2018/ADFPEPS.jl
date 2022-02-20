@@ -33,8 +33,8 @@ ABBA(i) = i in [1,4] ? 1 : 2
 function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     SdD, SDD, hx, hy = consts
-	T = reshape([T_parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	symmetry == :Z2 && (T = map(t2Z, T))
+	T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
+	symmetry == :Z2 && (T = map(tensor2Z2tensor, T))
 	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
 
@@ -125,13 +125,13 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
     folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-	SdD = Zygote.@ignore atype(swapgatedD(4, D))
-	SDD = Zygote.@ignore atype(swapgateDD(D))
+	SdD = Zygote.@ignore atype(swapgate(4, D))
+	SDD = Zygote.@ignore atype(swapgate(D, D))
     hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
     if symmetry == :Z2
-        SdD = t2ZSdD(SdD)
-        SDD = t2ZSDD(SDD)
+        SdD = tensor2Z2tensor(SdD)
+        SDD = tensor2Z2tensor(SDD)
         hx = tensor2Z2tensor(hx)
 		hy = tensor2Z2tensor(hy)
     end

@@ -74,6 +74,14 @@ julia> swapgate(2,4)
  0  0  0  1
 ```
 """
+function swapgate(d::Int, D::Int)
+	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,d,d),Matrix{ComplexF64}(I,D,D))
+	for j = 1:D, i = 1:d
+		sum(bitarray(i-1,Int(ceil(log2(d)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(D)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
+	end
+	return S
+end
+
 function swapgatedD(d::Int, D::Int)
 	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,d,d),Matrix{ComplexF64}(I,D,D))
 	for j = 1:D, i = 1:d
