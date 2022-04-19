@@ -30,6 +30,14 @@ function T_parity_conserving(T::AbstractArray)
 	return reshape(p.*T,s...)
 end
 
+function particle_conserving!(T::Union{Array,CuArray})
+	bits = map(x -> ceil(Int, log2(x)), size(T))
+    T[map(x->!(sum(sum.(bitarray.((Tuple(x).-1), bits))) in [0,1]), CartesianIndices(T))] .= 0
+    # T[map(x->sum(sum.(bitarray.((Tuple(x).-1), bits))) !== 2, CartesianIndices(T))] .= 0
+    return T
+end
+particle_conserving(T) = particle_conserving!(copy(T))
+
 """
     function swapgate(n1::Int,n2::Int)
 
@@ -108,7 +116,7 @@ function Z2bitselectionD(maxN::Int)
     return [(q .== 0),(q .== 1)]
 end
 
-function Z2t(A::Z2tensor{T,N}) where {T,N}
+function Z2t(A::Z2Array{T,N}) where {T,N}
     atype = _arraytype(A.tensor[1])
     tensor = zeros(T, size(A))
     parity = A.parity
@@ -126,7 +134,7 @@ function t2Z(A::AbstractArray{T,N}) where {T,N}
     parity = getparity(N)
     tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
     dims = map(x -> [size(x)...], tensor)
-    Z2tensor(parity, tensor, size(A), dims, 1)
+    Z2Array(parity, tensor, size(A), dims, 1)
 end
 
 function t2ZSdD(A::AbstractArray{T,N}) where {T,N}
@@ -136,7 +144,7 @@ function t2ZSdD(A::AbstractArray{T,N}) where {T,N}
     parity = getparity(N)
     tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
     dims = map(x -> [size(x)...], tensor)
-    Z2tensor(parity, tensor, size(A), dims, 1)
+    Z2Array(parity, tensor, size(A), dims, 1)
 end
 
 function t2ZSDD(A::AbstractArray{T,N}) where {T,N}
@@ -146,7 +154,7 @@ function t2ZSDD(A::AbstractArray{T,N}) where {T,N}
     parity = getparity(N)
     tensor = [atype(Aarray[[qlist[j][parity[i][j]+1] for j = 1:N]...]) for i in 1:length(parity)]
     dims = map(x -> [size(x)...], tensor)
-    Z2tensor(parity, tensor, size(A), dims, 1)
+    Z2Array(parity, tensor, size(A), dims, 1)
 end
 
 """
@@ -158,12 +166,8 @@ legs are counting from f and clockwisely.
 input legs order: ulfdr
 output legs order: ulfdr
 """
-function fdag(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
-	ein"(ulfdr,luij),rdpq->jifqp"(conj(T), SDD, SDD)
-end
-
-function fdag(T::AbstractZ2Array, SDD::AbstractZ2Array)
-	ein"(ulfdr,luij),rdpq->jifqp"(conj(T), SDD, SDD)
+function fdag(T::AbstractArray, SDD::AbstractArray)
+	ein"(ulfdr,luij),pqrd->jifqp"(conj(T), SDD, SDD)
 end
 
 """
@@ -172,16 +176,11 @@ end
 Obtain bulk tensor in peps, while the input tensor has indices which labeled by (lurdf).
 This tensor is ready for GCTMRG (general CTMRG) algorithm
 """
-function bulk(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
+function bulk(T::AbstractArray, SDD::AbstractArray)
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T, SDD)
-	return	_arraytype(T)(reshape(ein"((abcde,fgchi),bflm),dijk -> glhjkema"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2))
-end
-
-function bulk(T::AbstractZ2Array, SDD::AbstractZ2Array)
-	nu,nl,nf,nd,nr = size(T)
-	Tdag = fdag(T, SDD)
-	return Z2reshape(ein"((abcde,fgchi),bflm),dijk -> glhjkema"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2)
+    doublelayer = ein"((abcde,fgchi),lfbm), dkji-> glhjkema"(T,Tdag,SDD,SDD)
+    symmetryreshape(doublelayer, nl^2,nd^2,nr^2,nu^2)[1]
 end
 
 """
@@ -190,8 +189,10 @@ end
 Obtain bulk tensor in peps, while the input tensor has indices which labeled by (lurdf).
 This tensor is ready for GCTMRG (general CTMRG) algorithm
 """
-function bulkop(T::Union{Array{V,5},CuArray{V,5}}, SDD::Union{Array{V,4},CuArray{V,4}}) where V<:Number
+function bulkop(T::AbstractArray, SDD::AbstractArray)
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T, SDD)
-	return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
+    doublelayerop = ein"((abcde,fgnhi),lfbm), dkji-> glhjkemacn"(T,Tdag,SDD,SDD)
+    symmetryreshape(doublelayerop, nl^2,nd^2,nr^2,nu^2,nf,nf)[1]
+	# return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
 end

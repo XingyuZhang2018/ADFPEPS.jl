@@ -1,5 +1,5 @@
 using ADFPEPS
-using ADFPEPS: parity_conserving,double_ipeps_energy
+using ADFPEPS: parity_conserving, conjipeps, double_ipeps_energy
 using CUDA
 using LinearAlgebra
 using Random

@@ -5,16 +5,20 @@ using Random
 function generate_vertical_rules(;Nv=2,χ=800)
 	eincode = EinCode(((1,2,3,4,5),# T1
 	(6,7,8,9,10),#T2 (dag)
-	(2,6,11,12), #swapgate(nl,nu)
-	(8,10,14,13), #swapgate(nf,nu)
-	(3,13,15,16), #swapgate(nf,nr)
-	(4,16,17,18), #swapgate(nl,nu)
+
+	(11,6,2,12), #swapgate(nl,nu)
+	(14,13,8,10), #swapgate(nf,nu)
+	(3,16,15,13), #swapgate(nf,nr)
+	(4,18,17,16), #swapgate(nl,nu)
+
 	(17,19,20,21,22), #T4
 	(23,24,25,26,27), #T3 (dag)
-	(21,27,28,29),#swapgate(nl,nu)
-	(20,19,30,31),#swapgate(nf,nr)
-	(25,31,32,33),#swapgate(nf,nr)
-	(23,33,9,34), #swapgate(nl,nu)
+
+	(21,29,28,27),#swapgate(nl,nu)
+	(20,31,30,19),#swapgate(nf,nr)
+	(32,33,25,31),#swapgate(nf,nr)
+	(23,34,9,33), #swapgate(nl,nu)
+
 	(35,12,1,36), # ACu: E3
 	(36,18,5,37), # FRu: E8
 	(37,29,22,38), # FRo: E4
@@ -48,19 +52,19 @@ function generate_horizontal_rules(;Nv=2,χ=800)
     (3,4,21,22),#swapgate(nf,nu)
 
 	(6,7,8,9,10),#T2 (dag)
-    (8,22,23,27),#swapgate(nf,nu)
-    (10,40,17,27), #swapgate(nl,nu)
 
-    (2,6,29,30), #swapgate(nl,nu)
+    (23,22,8,27),#swapgate(nf,nu)
+    (17,27,10,40), #swapgate(nl,nu)
+    (29,6,2,30), #swapgate(nl,nu)
 
     (16,17,18,19,20),# T4(dag)
-    (18,26,25,16),#swapgate(nf,nu)
 
-    (13,28,24,26),#swapgate(nf,nu)
-    (12,28,5,33),#swapgate(nl,nu)
+    (25,16,18,26),#swapgate(nf,nu)
+    (13,26,24,28),#swapgate(nf,nu)
+    (5,28,12,33),#swapgate(nl,nu)
     (11,12,13,14,15),# T3
 
-    (20,32,31,14),#swapgate(nl,nu)
+    (31,14,20,32),#swapgate(nl,nu)
 
     (39,7,29,38), #E1 FLo
     (39,30,1,34), #E2 ACu

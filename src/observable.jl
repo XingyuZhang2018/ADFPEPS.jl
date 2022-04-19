@@ -1,7 +1,7 @@
 using JLD2
 using VUMPS:SquareVUMPSRuntime, ALCtoAC
 
-function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
+function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, maxiter=10)
     observable_log = folder*"/$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_observable.log"
     # if isfile(observable_log)
     #     println("load observable from $(observable_log)")
@@ -9,21 +9,32 @@ function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
     #     occ,doubleocc = parse.(Float64,split(readline(f), "   "))
     #     close(f)
     # else
-        ipeps, key = init_ipeps(model; Ni = Ni, Nj = Nj, atype = atype, folder = folder, D=D, χ=χ, tol=tol, maxiter= maxiter)
-        folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
-        T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-        b = reshape([zeros(D^2,D^2,D^2,D^2) for i = 1:Ni*Nj], (Ni, Nj))
+        ipeps, key = init_ipeps(model; Ni = Ni, Nj = Nj, atype = atype, folder = folder, symmetry = symmetry, D=D, χ=χ, tol=tol, maxiter= maxiter)
+        folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+        if symmetry == :none
+            T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
+        else
+            T = reshape([ipeps[:,:,:,:,:,ABBA(i)] for i = 1:Ni*Nj], (Ni, Nj))
+        end
+        # T = reshape([asArray(asSymmetryArray(ipeps[:,:,:,:,:,ABBA(i)], Val(:U1); dir = [-1,-1,1,1,1], q=[1])) for i = 1:Ni*Nj], (Ni, Nj))
+        T = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,-1,1,1,1], q=[1]), T)
+        b = reshape([asSymmetryArray(zeros(D^2,D^2,D^2,D^2), Val(symmetry); dir = [-1,-1,1,1]) for i = 1:Ni*Nj], (Ni, Nj))
         # b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
-        op = reshape([permutedims(bulkop(T[i]),(2,3,4,1,5,6)) for i = 1:Ni*Nj], (Ni, Nj))
+        SDD = asSymmetryArray(swapgate(D, D), Val(symmetry); dir = [-1,-1,1,1])
+        op = reshape([bulkop(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 
         chkp_file_obs = folder*"/$(model)_$(Ni)x$(Nj)/obs_D$(D^2)_χ$(χ).jld2"
         FLo, FRo = load(chkp_file_obs)["env"]
         chkp_file_up = folder*"/$(model)_$(Ni)x$(Nj)/up_D$(D^2)_χ$(χ).jld2"                     
         rtup = SquareVUMPSRuntime(b, chkp_file_up, χ)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
-        chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2"                              
-        rtdown = SquareVUMPSRuntime(b, chkp_file_down, χ)   
-        ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
+        chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2" 
+        if isfile(chkp_file_down)                             
+            rtdown = SquareVUMPSRuntime(b, chkp_file_down, χ)   
+            ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
+        else
+            ALd,ARd,Cd = ALu,ARu,Cu
+        end
 
         ACu = ALCtoAC(ALu,Cu)
         ACd = ALCtoAC(ALd,Cd)
@@ -33,16 +44,17 @@ function observable(model, Ni, Nj, atype, folder, D, χ, tol=1e-10, maxiter=10)
         Nzup = atype([0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1])
         Nzdn = atype([0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1])
         Nxup = atype([0.0 0 0 0; 0 1  1 0; 0  1 1 0; 0 0 0 2]./2)
-        Nxdn = atype([0.0 0 0 0; 0 1 -1 0; 0 -1 1 0; 0 1 1 2]./2)
+        Nxdn = atype([0.0 0 0 0; 0 1 -1 0; 0 -1 1 0; 0 0 0 2]./2)
         Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
-        Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 1 1 2]./2)
-        U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
+        Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 0 0 2]./2)
+        # U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
+        hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1]), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
         occ = 0
         doubleocc = 0
         for j = 1:Nj, i = 1:Ni
             println("==========$i $j==========")
             ir = Ni + 1 - i
-            ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(FLo[i,j],ACu[i,j],op[i,j],ACd[ir,j],FRo[i,j])
+            ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(FLo[i,j],ACu[i,j],op[i,j],conj(ACd[ir,j]),FRo[i,j])
             # if (i,j) in [(2,1),(1,2)]
             #     ρ = U' * ρ * U
             # end

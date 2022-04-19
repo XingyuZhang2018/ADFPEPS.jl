@@ -21,7 +21,7 @@ function ipeps_enviroment(M::AbstractArray, key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
 
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = true, show_every=Inf)
 
 	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -33,8 +33,13 @@ ABBA(i) = i in [1,4] ? 1 : 2
 function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     SdD, SDD, hx, hy = consts
-	T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	symmetry == :Z2 && (T = map(tensor2Z2tensor, T))
+	if symmetry == :none
+		T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
+	else
+		T = reshape([ipeps[:,:,:,:,:,ABBA(i)] for i = 1:Ni*Nj], (Ni, Nj))
+	end
+	T = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,-1,1,1,1], q=[1]), T)
+	# @show sum(prod.(T[1].dims))
 	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
 
@@ -45,7 +50,7 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 		
 		Tij, Tijr, Tirj = T[i,j], T[i,jr], T[ir,j]
 		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
-		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex, symmetry)
+		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ex = ein"ijkl,ijkl -> "(ρx,hx)[]
@@ -54,7 +59,7 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 		println("─ = $(Ex/nx)") 
 
         ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
-		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey, symmetry)
+		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ey = ein"ijkl,ijkl -> "(ρy,hy)[]
@@ -62,33 +67,51 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 		etol += Ey/ny
 		println("│ = $(Ey/ny)")
 	end
-
+	@show etol/Ni/Nj
 	return real(etol)/Ni/Nj
 end
 
-function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, symmetry)
+function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	if symmetry == :Z2
-		(E1,E2,E4,E6,E7,E8) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-	else
-		(E1,E2,E4,E6,E7,E8) = map(x->reshape(x,(χ,nl,nl,χ)),env)
+	reinfo1, reinfo2, reinfo3 = nothing, nothing, nothing
+	if getsymmetry(env[1]) == :U1
+		reinfo1 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,-1,1,-1])
+		reinfo2 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,-1,1,1])
+		reinfo3 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,1,-1,1])
+		# reinfo4 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,1,-1,-1])
 	end
+	
+	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo1)[1]
+	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo2)[1]
+	E4 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo3)[1]
+	E6 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo2)[1]
+	E7 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo1)[1]
+	E8 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo3)[1]
+
 	result = VERTICAL_RULES(T1,fdag(T1, SDD),SDD,SdD,SdD,SDD,T2,fdag(T2, SDD),SDD,SdD,SdD,SDD,
-	E2,E8,E4,E6,E1,E7)
+	E2,E8,E4,conj(E6),E1,E7)
 	return result
 end
 
-function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env, symmetry)
+function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	if symmetry == :Z2
-		(E1,E2,E3,E4,E5,E6) = map(x->Z2reshape(x,(χ,nl,nl,χ)),env)
-	else
-		(E1,E2,E3,E4,E5,E6) = map(x->reshape(x,(χ,nl,nl,χ)),env)
+	reinfo1, reinfo2, reinfo3 = nothing, nothing, nothing
+	if getsymmetry(env[1]) == :U1
+		reinfo1 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,-1,1,-1])
+		reinfo2 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,-1,1,1])
+		reinfo3 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,1,-1,1])
+		# reinfo4 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,1,-1,-1])
 	end
+	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo1)[1]
+	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo2)[1]
+	E3 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo2)[1]
+	E4 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo3)[1]
+	E5 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo2)[1]
+	E6 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo2)[1]
 	result = HORIZONTAL_RULES(T1,SdD,fdag(T1, SDD),SdD,SDD,SDD,fdag(T2, SDD),SdD,SdD,SDD,T2,SDD,
-	E1,E2,E3,E4,E5,E6)
+	E1,E2,E3,E4,conj(E5),conj(E6))
 	return result
 end
 
@@ -129,12 +152,12 @@ function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, ve
 	SDD = Zygote.@ignore atype(swapgate(D, D))
     hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-    if symmetry == :Z2
-        SdD = tensor2Z2tensor(SdD)
-        SDD = tensor2Z2tensor(SDD)
-        hx = tensor2Z2tensor(hx)
-		hy = tensor2Z2tensor(hy)
-    end
+
+	SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1])
+	SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1])
+	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
+	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
+
     consts = (SdD, SDD, hx, hy)
     to = TimerOutput()
     f(x) = @timeit to "forward" double_ipeps_energy(atype(x), consts, key)
