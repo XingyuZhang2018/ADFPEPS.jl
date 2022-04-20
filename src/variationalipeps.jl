@@ -30,16 +30,24 @@ end
 
 ABBA(i) = i in [1,4] ? 1 : 2
 
+function buildipeps(ipeps, key)
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+	if symmetry == :Z2
+		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
+		reshape([Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
+	elseif symmetry == :U1
+		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
+		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
+	else
+		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
+		reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
+	end
+end
+
 function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
     SdD, SDD, hx, hy = consts
-	if symmetry == :none
-		T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-	else
-		T = reshape([ipeps[:,:,:,:,:,ABBA(i)] for i = 1:Ni*Nj], (Ni, Nj))
-	end
-	T = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,-1,1,1,1], q=[1]), T)
-	# @show sum(prod.(T[1].dims))
+	T = buildipeps(ipeps, key)
 	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
 
@@ -130,7 +138,9 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
         ipeps = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
-        ipeps = rand(ComplexF64,D,D,4,D,D,Int(ceil(Ni*Nj/2)))
+		symmetry == :none && (symmetry = :Z2)
+		randdims = sum(prod.(zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1]).dims))
+        ipeps = rand(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
     end 
     ipeps /= norm(ipeps)

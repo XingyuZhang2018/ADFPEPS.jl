@@ -11,13 +11,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, ma
     # else
         ipeps, key = init_ipeps(model; Ni = Ni, Nj = Nj, atype = atype, folder = folder, symmetry = symmetry, D=D, χ=χ, tol=tol, maxiter= maxiter)
         folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-        if symmetry == :none
-            T = reshape([parity_conserving(ipeps[:,:,:,:,:,ABBA(i)]) for i = 1:Ni*Nj], (Ni, Nj))
-        else
-            T = reshape([ipeps[:,:,:,:,:,ABBA(i)] for i = 1:Ni*Nj], (Ni, Nj))
-        end
-        # T = reshape([asArray(asSymmetryArray(ipeps[:,:,:,:,:,ABBA(i)], Val(:U1); dir = [-1,-1,1,1,1], q=[1])) for i = 1:Ni*Nj], (Ni, Nj))
-        T = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,-1,1,1,1], q=[1]), T)
+        T = buildipeps(ipeps, key)
         b = reshape([asSymmetryArray(zeros(D^2,D^2,D^2,D^2), Val(symmetry); dir = [-1,-1,1,1]) for i = 1:Ni*Nj], (Ni, Nj))
         # b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
         SDD = asSymmetryArray(swapgate(D, D), Val(symmetry); dir = [-1,-1,1,1])
@@ -28,13 +22,9 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, ma
         chkp_file_up = folder*"/$(model)_$(Ni)x$(Nj)/up_D$(D^2)_χ$(χ).jld2"                     
         rtup = SquareVUMPSRuntime(b, chkp_file_up, χ)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
-        chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2" 
-        if isfile(chkp_file_down)                             
-            rtdown = SquareVUMPSRuntime(b, chkp_file_down, χ)   
-            ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
-        else
-            ALd,ARd,Cd = ALu,ARu,Cu
-        end
+        chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2"                             
+        rtdown = SquareVUMPSRuntime(b, chkp_file_down, χ)   
+        ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
 
         ACu = ALCtoAC(ALu,Cu)
         ACd = ALCtoAC(ALd,Cd)
