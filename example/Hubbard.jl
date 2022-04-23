@@ -6,8 +6,8 @@ using VUMPS
 
 CUDA.allowscalar(false)
 Random.seed!(100)
-model = Hubbard(1.0,12.0,6.0)
-symmetry = :U1
+model = Hubbard(1.0, 12.0, 6.0)
+symmetry = :none
 folder = "./example/Hubbard/$symmetry/"
 ipeps, key = init_ipeps(model; Ni=2, Nj=2, symmetry=symmetry, atype=Array, folder=folder, D=2, χ=20, tol=1e-10, maxiter=10)
 # folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key

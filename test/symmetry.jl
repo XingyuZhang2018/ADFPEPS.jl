@@ -6,7 +6,7 @@ using Test
 using OMEinsum
 
 @testset "swapgate with $symmetry symmetry" for symmetry in [:Z2, :U1]
-    sg = swapgate(4, 4)
+    sg = swapgate(4, 3)
     sgsymmetry = asSymmetryArray(sg, Val(symmetry); dir = [-1,-1,1,1])
     sgsymmetryt = asArray(sgsymmetry)
     @test sg == sgsymmetryt
