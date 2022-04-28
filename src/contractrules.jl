@@ -2,7 +2,7 @@ using OMEinsum
 using OMEinsumContractionOrders
 using Random
 
-function generate_vertical_rules(;Nv=2,χ=800)
+function generate_vertical_rules(;D=2,χ=20)
 	eincode = EinCode(((1,2,3,4,5),# T1
 	(6,7,8,9,10),#T2 (dag)
 
@@ -29,7 +29,7 @@ function generate_vertical_rules(;Nv=2,χ=800)
 	(15,30,14,32) #hamiltonian (ij di dj)
 	)
 		
-	size_dict = [2^Nv for i = 1:40]
+	size_dict = [D for i = 1:40]
 	size_dict[[3;8;14;15;30;32;20;25]] .= 4
 	size_dict[35:40] .= χ
 	sd = Dict(i=>size_dict[i] for i = 1:40)
@@ -45,9 +45,9 @@ function generate_vertical_rules(;Nv=2,χ=800)
 	# end
 	return optcode
 end
-const VERTICAL_RULES = generate_vertical_rules()
+# const VERTICAL_RULES = generate_vertical_rules()
 
-function generate_horizontal_rules(;Nv=2,χ=800)
+function generate_horizontal_rules(;D=2,χ=20)
     eincode = EinCode(((1,2,3,4,5),# T1
     (3,4,21,22),#swapgate(nf,nu)
 
@@ -76,7 +76,7 @@ function generate_horizontal_rules(;Nv=2,χ=800)
 	(21,24,23,25) #hamiltonian (ij di dj)
 	)
 
-    size_dict = [2^Nv for i = 1:40]
+    size_dict = [D for i = 1:40]
 	size_dict[[3;8;13;18;21;23;24;25]] .= 4
 	size_dict[34:39] .= χ
 	sd = Dict(i=>size_dict[i] for i = 1:40)
@@ -90,4 +90,4 @@ function generate_horizontal_rules(;Nv=2,χ=800)
 
 	return optcode
 end
-const HORIZONTAL_RULES = generate_horizontal_rules()
+# const HORIZONTAL_RULES = generate_horizontal_rules()

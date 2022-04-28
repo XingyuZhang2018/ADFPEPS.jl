@@ -3,9 +3,10 @@ using HDF5
 using Optim, LineSearches
 using LinearAlgebra: I, norm
 using TimerOutputs
+using VUMPS: deletezerobulk
 using Zygote
 
-export init_ipeps
+export init_ipeps, initial_consts
 export optimiseipeps
 
 """
@@ -21,7 +22,7 @@ function ipeps_enviroment(M::AbstractArray, key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
 
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile= true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = true, show_every=Inf)
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile = true, infolder=folder*"/$(model)_$(Ni)x$(Nj)/", outfolder=folder*"/$(model)_$(Ni)x$(Nj)/", updown = true, downfromup = false, show_every=Inf)
 
 	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -33,20 +34,20 @@ ABBA(i) = i in [1,4] ? 1 : 2
 function buildipeps(ipeps, key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
 	if symmetry == :Z2
-		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
+		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
 		reshape([Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	elseif symmetry == :U1
-		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
+		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
 		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	else
-		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
+		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
 		reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
 	end
 end
 
 function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-    SdD, SDD, hx, hy = consts
+    SdD, SDD, hx, hy, HORIZONTAL_RULES, VERTICAL_RULES, reinfo = consts
 	T = buildipeps(ipeps, key)
 	M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 	E1,E2,E3,E4,E5,E6,E7,E8 = ipeps_enviroment(M, key)
@@ -58,7 +59,7 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 		
 		Tij, Tijr, Tirj = T[i,j], T[i,jr], T[ir,j]
 		ex = (E1[i,j],E2[i,j],E3[i,jr],E4[i,jr],E5[ir,jr],E6[ir,j])
-		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex)
+		ρx = square_ipeps_contraction_horizontal(Tij, Tijr, SdD, SDD, ex, HORIZONTAL_RULES, reinfo)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ex = ein"ijkl,ijkl -> "(ρx,hx)[]
@@ -67,7 +68,7 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 		println("─ = $(Ex/nx)") 
 
         ey = (E1[ir,j],E2[i,j],E4[ir,j],E6[i,j],E7[i,j],E8[i,j])
-		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey)
+		ρy = square_ipeps_contraction_vertical(Tij, Tirj, SdD, SDD, ey, VERTICAL_RULES, reinfo)
 		# ρ1 = reshape(ρ,16,16)
 		# @show norm(ρ1-ρ1')
         Ey = ein"ijkl,ijkl -> "(ρy,hy)[]
@@ -79,45 +80,32 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 	return real(etol)/Ni/Nj
 end
 
-function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env)
+function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, VERTICAL_RULES, reinfo)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	reinfo1, reinfo2, reinfo3 = nothing, nothing, nothing
-	if getsymmetry(env[1]) == :U1
-		reinfo1 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,-1,1,-1])
-		reinfo2 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,-1,1,1])
-		reinfo3 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,1,-1,1])
-		# reinfo4 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,1,-1,-1])
-	end
 	
-	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo1)[1]
-	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo2)[1]
-	E4 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo3)[1]
-	E6 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo2)[1]
-	E7 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo1)[1]
-	E8 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo3)[1]
+	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo[1])[1]
+	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo[2])[1]
+	E4 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo[3])[1]
+	E6 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo[2])[1]
+	E7 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo[1])[1]
+	E8 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo[3])[1]
 
 	result = VERTICAL_RULES(T1,fdag(T1, SDD),SDD,SdD,SdD,SDD,T2,fdag(T2, SDD),SDD,SdD,SdD,SDD,
 	E2,E8,E4,conj(E6),E1,E7)
 	return result
 end
 
-function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env)
+function square_ipeps_contraction_horizontal(T1, T2, SdD, SDD, env, HORIZONTAL_RULES, reinfo)
 	nu,nl,nf,nd,nr = size(T1)
 	χ = size(env[1])[1]
-	reinfo1, reinfo2, reinfo3 = nothing, nothing, nothing
-	if getsymmetry(env[1]) == :U1
-		reinfo1 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,-1,1,-1])
-		reinfo2 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,-1,1,1])
-		reinfo3 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[-1,1,-1,1])
-		# reinfo4 = U1reshapeinfo((χ,nl^2,χ),(χ,nl,nl,χ),[1,1,-1,-1])
-	end
-	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo1)[1]
-	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo2)[1]
-	E3 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo2)[1]
-	E4 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo3)[1]
-	E5 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo2)[1]
-	E6 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo2)[1]
+
+	E1 = symmetryreshape(env[1], χ,nl,nl,χ; reinfo = reinfo[1])[1]
+	E2 = symmetryreshape(env[2], χ,nl,nl,χ; reinfo = reinfo[2])[1]
+	E3 = symmetryreshape(env[3], χ,nl,nl,χ; reinfo = reinfo[2])[1]
+	E4 = symmetryreshape(env[4], χ,nl,nl,χ; reinfo = reinfo[3])[1]
+	E5 = symmetryreshape(env[5], χ,nl,nl,χ; reinfo = reinfo[2])[1]
+	E6 = symmetryreshape(env[6], χ,nl,nl,χ; reinfo = reinfo[2])[1]
 	result = HORIZONTAL_RULES(T1,SdD,fdag(T1, SDD),SdD,SDD,SDD,fdag(T2, SDD),SdD,SdD,SDD,T2,SDD,
 	E1,E2,E3,E4,conj(E5),conj(E6))
 	return result
@@ -139,13 +127,38 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
         verbose && println("load iPEPS from $chkp_file")
     else
 		symmetry == :none && (symmetry = :Z2)
-		randdims = sum(prod.(zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0]).dims))
+		randdims = sum(prod.(zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1]).dims))
 		# @show randdims
-        ipeps = rand(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
+        ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
     end 
     ipeps /= norm(ipeps)
     return ipeps, key
+end
+
+function initial_consts(key)
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+	SdD = atype(swapgate(4, D))
+	SDD = atype(swapgate(D, D))
+    hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+
+	SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1])
+	SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1])
+	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
+	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
+
+	VERTICAL_RULES = generate_vertical_rules(D = D, χ = χ)
+	HORIZONTAL_RULES = generate_horizontal_rules(D = D, χ = χ)
+
+	reinfo = []
+	if symmetry == :U1
+		push!(reinfo, U1reshapeinfo((χ,D^2,χ), (χ,D,D,χ), [1,-1,1,-1]))
+		push!(reinfo, U1reshapeinfo((χ,D^2,χ), (χ,D,D,χ), [-1,-1,1,1]))
+		push!(reinfo, U1reshapeinfo((χ,D^2,χ), (χ,D,D,χ), [-1,1,-1,1]))
+	end
+
+	SdD, SDD, hx, hy, HORIZONTAL_RULES, VERTICAL_RULES, reinfo
 end
 
 """
@@ -159,17 +172,8 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
     folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
-	SdD = Zygote.@ignore atype(swapgate(4, D))
-	SDD = Zygote.@ignore atype(swapgate(D, D))
-    hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+    consts = initial_consts(key)
 
-	SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1])
-	SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1])
-	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
-	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
-
-    consts = (SdD, SDD, hx, hy)
     to = TimerOutput()
     f(x) = @timeit to "forward" double_ipeps_energy(atype(x), consts, key)
     ff(x) = double_ipeps_energy(atype(x), consts, key)

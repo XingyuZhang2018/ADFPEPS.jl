@@ -1,10 +1,6 @@
 using ChainRulesCore
 
-@non_differentiable generate_horizontal_rules()
-@non_differentiable generate_vertical_rules()
-@non_differentiable hamiltonian(model::HamiltonianModel)
-@non_differentiable Hubbard_hand(model::HamiltonianModel)
-@non_differentiable hop_pair_hand(t,γ)
+@non_differentiable initial_consts(key)
 
 ChainRulesCore.rrule(::typeof(T_parity_conserving),T::AbstractArray) = T_parity_conserving(T), dT -> (NoTangent(), T_parity_conserving(dT))
 

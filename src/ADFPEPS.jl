@@ -6,8 +6,9 @@ export observable
 
 include("hamiltonianmodels.jl")
 include("fermion.jl")
-include("autodiff.jl")
 include("variationalipeps.jl")
+include("autodiff.jl")
 include("observable.jl")
+include("initialipeps.jl")
 
 end
