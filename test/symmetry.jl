@@ -1,28 +1,31 @@
 using ADFPEPS
-using ADFPEPS: swapgate, fdag, bulk
+using ADFPEPS: swapgate, fdag, bulk, U1swapgate
 using VUMPS
 using Random
 using Test
 using OMEinsum
 
-@testset "swapgate with $symmetry symmetry" for symmetry in [:Z2, :U1]
-    sg = swapgate(4, 3)
-    sgsymmetry = asSymmetryArray(sg, Val(symmetry); dir = [-1,-1,1,1])
-    sgsymmetryt = asArray(sgsymmetry)
+@testset "swapgate with $symmetry symmetry" for symmetry in [:U1]
+    D = 3
+    sg = swapgate(4, D)
+    sgsymmetry = asSymmetryArray(sg, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, D, 4, D), indims = u1bulkdims(4, D, 4, D))
+    sgsymmetryt = asArray(sgsymmetry; indqn = getqrange(4, D, 4, D), indims = u1bulkdims(4, D, 4, D))
+    U1sg = U1swapgate(Array, ComplexF64, 4, D; indqn = getqrange(4, D, 4, D), indims = u1bulkdims(4, D, 4, D))
     @test sg == sgsymmetryt
-
-    h = [0.0 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 2]
-    hs = asSymmetryArray(h, Val(symmetry); dir = [-1,1])
-    hst = asArray(hs)
-    @test h == hst
+    @test sg == U1sg
     @show sgsymmetry
+    # h = [0.0 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 2]
+    # hs = asSymmetryArray(h, Val(symmetry); dir = [-1,1])
+    # hst = asArray(hs)
+    # @test h == hst
+    # @show sgsymmetry
 end
 
-@testset "hamiltonian with $symmetry symmetry" for symmetry in [:Z2, :U1]
+@testset "hamiltonian with $symmetry symmetry" for symmetry in [:U1]
     Random.seed!(100)
-    model = Hubbard(1.0,0.0,0.0)
+    model = Hubbard(1.0,12.0,6.0)
     h = reshape(hamiltonian(model), 4, 4, 4, 4)
-    hsymmetry = asSymmetryArray(h, Val(symmetry); dir = [-1,-1,1,1])
-    hsymmetryt = asArray(hsymmetry)
+    hsymmetry = asSymmetryArray(h, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
+    hsymmetryt = asArray(hsymmetry; indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
     @test h == hsymmetryt
 end

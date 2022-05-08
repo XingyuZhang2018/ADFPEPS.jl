@@ -12,18 +12,17 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, ma
         ipeps, key = init_ipeps(model; Ni = Ni, Nj = Nj, atype = atype, folder = folder, symmetry = symmetry, D=D, χ=χ, tol=tol, maxiter= maxiter)
         folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
         T = buildipeps(ipeps, key)
-        b = reshape([asSymmetryArray(zeros(D^2,D^2,D^2,D^2), Val(symmetry); dir = [-1,-1,1,1]) for i = 1:Ni*Nj], (Ni, Nj))
-        # b = reshape([permutedims(bulk(T[i]),(2,3,4,1)) for i = 1:Ni*Nj], (Ni, Nj))
         SDD = asSymmetryArray(swapgate(D, D), Val(symmetry); dir = [-1,-1,1,1])
+        M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
         op = reshape([bulkop(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
 
         chkp_file_obs = folder*"/$(model)_$(Ni)x$(Nj)/obs_D$(D^2)_χ$(χ).jld2"
         FLo, FRo = load(chkp_file_obs)["env"]
         chkp_file_up = folder*"/$(model)_$(Ni)x$(Nj)/up_D$(D^2)_χ$(χ).jld2"                     
-        rtup = SquareVUMPSRuntime(b, chkp_file_up, χ)   
+        rtup = SquareVUMPSRuntime(M, chkp_file_up, χ)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
         chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2"                             
-        rtdown = SquareVUMPSRuntime(b, chkp_file_down, χ)   
+        rtdown = SquareVUMPSRuntime(M, chkp_file_down, χ)   
         ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
 
         ACu = ALCtoAC(ALu,Cu)
