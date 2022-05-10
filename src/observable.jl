@@ -1,27 +1,32 @@
 using JLD2
 using VUMPS:SquareVUMPSRuntime, ALCtoAC
 
-function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, maxiter=10)
-    observable_log = folder*"/$(model)_$(Ni)x$(Nj)/D$(D)_χ$(χ)_observable.log"
+function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, indD, indχ, dimsD, dimsχ, tol=1e-10, maxiter=10)
+    
     # if isfile(observable_log)
     #     println("load observable from $(observable_log)")
     #     f = open(observable_log, "r" )
     #     occ,doubleocc = parse.(Float64,split(readline(f), "   "))
     #     close(f)
     # else
-        ipeps, key = init_ipeps(model; Ni = Ni, Nj = Nj, atype = atype, folder = folder, symmetry = symmetry, D=D, χ=χ, tol=tol, maxiter= maxiter)
-        folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter = key
+        ipeps, key = init_ipeps(model; Ni=Ni, Nj=Nj, symmetry=symmetry, atype=atype, folder=folder, tol=tol, maxiter=maxiter, D=D, χ=χ, indD = indD, indχ = indχ, dimsD = dimsD, dimsχ = dimsχ)
+        folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+        observable_log = folder*"/D$(D)_χ$(χ)_observable.log"
+        
         T = buildipeps(ipeps, key)
-        SDD = asSymmetryArray(swapgate(D, D), Val(symmetry); dir = [-1,-1,1,1])
-        M = reshape([bulk(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
-        op = reshape([bulkop(T[i], SDD) for i = 1:Ni*Nj], (Ni, Nj))
+        SDD = U1swapgate(atype, ComplexF64, D, D; 
+		indqn = [indD for _ in 1:4], 
+		indims = [dimsD for _ in 1:4]
+	    )
+        M = reshape([bulk(T[i], SDD, indD, dimsD) for i = 1:Ni*Nj], (Ni, Nj))
+        op = reshape([bulkop(T[i], SDD, indD, dimsD) for i = 1:Ni*Nj], (Ni, Nj))
 
-        chkp_file_obs = folder*"/$(model)_$(Ni)x$(Nj)/obs_D$(D^2)_χ$(χ).jld2"
+        chkp_file_obs = folder*"/obs_D$(D^2)_χ$(χ).jld2"
         FLo, FRo = load(chkp_file_obs)["env"]
-        chkp_file_up = folder*"/$(model)_$(Ni)x$(Nj)/up_D$(D^2)_χ$(χ).jld2"                     
+        chkp_file_up = folder*"/up_D$(D^2)_χ$(χ).jld2"                     
         rtup = SquareVUMPSRuntime(M, chkp_file_up, χ)   
         FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
-        chkp_file_down = folder*"/$(model)_$(Ni)x$(Nj)/down_D$(D^2)_χ$(χ).jld2"                             
+        chkp_file_down = folder*"/down_D$(D^2)_χ$(χ).jld2"                             
         rtdown = SquareVUMPSRuntime(M, chkp_file_down, χ)   
         ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
 
@@ -37,7 +42,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, ma
         Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
         Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 0 0 2]./2)
         # U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
-        hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1]), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
+        # hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1], indqn = getqrange(size(x)...), indims = u1bulkdims(size(x)...)), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
         occ = 0
         doubleocc = 0
         for j = 1:Nj, i = 1:Ni
@@ -47,6 +52,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, tol=1e-10, ma
             # if (i,j) in [(2,1),(1,2)]
             #     ρ = U' * ρ * U
             # end
+            ρ = asArray(ρ; indqn = getqrange(4, 4), indims = u1bulkdims(4, 4))
             Occ = ein"pq,pq -> "(ρ,hocc)
             DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
             NNzup = ein"pq,pq -> "(ρ,Nzup)

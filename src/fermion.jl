@@ -215,8 +215,8 @@ function bulkop(T::AbstractArray, SDD::AbstractArray, indD, dimsD)
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T, SDD)
     doublelayerop = ein"((abcde,fgnhi),lfbm), dkji-> glhjkemacn"(T,Tdag,SDD,SDD)
-    indqn = [indD for _ in 1:8]
-    indims = [dimsD for _ in 1:8]
+    indqn = [[indD for _ in 1:8]; getqrange(4, 4)]
+    indims = [[dimsD for _ in 1:8]; u1bulkdims(4, 4)]
     symmetryreshape(doublelayerop, nl^2,nd^2,nr^2,nu^2,nf,nf; reinfo = (nothing, nothing, nothing, indqn, indims, nothing, nothing))[1]
 	# return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
 end

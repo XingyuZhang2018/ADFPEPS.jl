@@ -39,8 +39,8 @@ function buildipeps(ipeps, key)
 	elseif symmetry == :U1
 		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; 
 			dir = [-1,-1,1,1,1], 
-			indqn = [indD, indD, [0, 1, 2], indD, indD], 
-			indims = [dimsD, dimsD, [1, 2, 1], dimsD, dimsD], 
+			indqn = [indD, indD, getqrange(4)..., indD, indD], 
+			indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
 			q = [1]
 		)
 		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
@@ -134,8 +134,8 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
 		randdims = sum(prod.(
 			zerosinitial(Val(symmetry), atype, ComplexF64, D, D, 4, D, D; 
 						dir = [-1, -1, 1, 1, 1], 
-						indqn = [indD, indD, [0, 1, 2], indD, indD],                    
-						indims = [dimsD, dimsD, [1, 2, 1], dimsD, dimsD], 
+						indqn = [indD, indD, getqrange(4)..., indD, indD],                    
+						indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
 						q = [1]
 						).dims))
         ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
@@ -150,8 +150,8 @@ end
 function initial_consts(key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
 	SdD = U1swapgate(atype, ComplexF64, 4, D; 
-		indqn = [[0, 1, 2], indD, [0, 1, 2], indD], 
-		indims = [[1, 2, 1], dimsD, [1, 2, 1], dimsD]
+		indqn = [getqrange(4)..., indD, getqrange(4)..., indD], 
+		indims = [u1bulkdims(4)..., dimsD, u1bulkdims(4)..., dimsD]
 	)
 	SDD = U1swapgate(atype, ComplexF64, D, D; 
 		indqn = [indD for _ in 1:4], 
