@@ -107,7 +107,9 @@ function U1swapgate(atype, dtype, d::Int, D::Int; indqn::Vector{Vector{Int}}, in
             push!(tensor, tensori)
         end
     end
-    U1Array(qn, dir, tensor, (d, D, d, D), dims, 1)
+    p = sortperm(qn)
+    tensor = vcat(map(vec, tensor[p])...)
+    U1Array(qn[p], dir, tensor, (d, D, d, D), dims[p], 1)
 end
 
 function swapgatedD(d::Int, D::Int)
@@ -216,7 +218,7 @@ function bulkop(T::AbstractArray, SDD::AbstractArray, indD, dimsD)
 	Tdag = fdag(T, SDD)
     doublelayerop = ein"((abcde,fgnhi),lfbm), dkji-> glhjkemacn"(T,Tdag,SDD,SDD)
     indqn = [[indD for _ in 1:8]; getqrange(4, 4)]
-    indims = [[dimsD for _ in 1:8]; u1bulkdims(4, 4)]
+    indims = [[dimsD for _ in 1:8]; getblockdims(4, 4)]
     symmetryreshape(doublelayerop, nl^2,nd^2,nr^2,nu^2,nf,nf; reinfo = (nothing, nothing, nothing, indqn, indims, nothing, nothing))[1]
 	# return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
 end

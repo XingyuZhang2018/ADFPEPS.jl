@@ -3,7 +3,6 @@ using HDF5
 using Optim, LineSearches
 using LinearAlgebra: I, norm
 using TimerOutputs
-using VUMPS: deletezerobulk
 using Zygote
 
 export init_ipeps, initial_consts
@@ -40,10 +39,10 @@ function buildipeps(ipeps, key)
 		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; 
 			dir = [-1,-1,1,1,1], 
 			indqn = [indD, indD, getqrange(4)..., indD, indD], 
-			indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
+			indims = [dimsD, dimsD, getblockdims(4)..., dimsD, dimsD], 
 			q = [1]
 		)
-		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
+		reshape([U1Array(info.qn, info.dir, atype(ipeps[:, ABBA(i)]), info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	else
 		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
 		reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
@@ -135,7 +134,7 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
 			zerosinitial(Val(symmetry), atype, ComplexF64, D, D, 4, D, D; 
 						dir = [-1, -1, 1, 1, 1], 
 						indqn = [indD, indD, getqrange(4)..., indD, indD],                    
-						indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
+						indims = [dimsD, dimsD, getblockdims(4)..., dimsD, dimsD], 
 						q = [1]
 						).dims))
         ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
@@ -151,7 +150,7 @@ function initial_consts(key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
 	SdD = U1swapgate(atype, ComplexF64, 4, D; 
 		indqn = [getqrange(4)..., indD, getqrange(4)..., indD], 
-		indims = [u1bulkdims(4)..., dimsD, u1bulkdims(4)..., dimsD]
+		indims = [getblockdims(4)..., dimsD, getblockdims(4)..., dimsD]
 	)
 	SDD = U1swapgate(atype, ComplexF64, D, D; 
 		indqn = [indD for _ in 1:4], 
@@ -160,10 +159,10 @@ function initial_consts(key)
     hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
 	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
 
-	# SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, D, 4, D), indims = u1bulkdims(4, D, 4, D))
-	# SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(D, D, D, D), indims = u1bulkdims(D, D, D, D))
-	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
-	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
+	# SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, D, 4, D), indims = getblockdims(4, D, 4, D))
+	# SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(D, D, D, D), indims = getblockdims(D, D, D, D))
+	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = getblockdims(4, 4, 4, 4))
+	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = getblockdims(4, 4, 4, 4))
 
 	VERTICAL_RULES = generate_vertical_rules(D = D, χ = χ)
 	HORIZONTAL_RULES = generate_horizontal_rules(D = D, χ = χ)
