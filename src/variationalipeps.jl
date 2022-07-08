@@ -19,10 +19,10 @@ export optimiseipeps
 	order: adf,abc,dgeb,fgh,ceh
 """
 function ipeps_enviroment(M::AbstractArray, key)
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
 
 	# VUMPS
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=1, tol = tol, verbose=true, savefile = true, infolder=folder, outfolder=folder, updown = true, downfromup = false, show_every=Inf, U1info = (indD, indχ, dimsD, dimsχ))
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=miniter, tol = tol, verbose=true, savefile = true, infolder=folder, outfolder=folder, updown = true, downfromup = false, show_every=Inf, U1info = (indD, indχ, dimsD, dimsχ))
 
 	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -32,26 +32,26 @@ end
 ABBA(i) = i in [1,4] ? 1 : 2
 
 function buildipeps(ipeps, key)
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
 	if symmetry == :Z2
-		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
+		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
 		reshape([Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	elseif symmetry == :U1
 		info = Zygote.@ignore zerosinitial(Val(symmetry), atype, ComplexF64, D,D,4,D,D; 
 			dir = [-1,-1,1,1,1], 
 			indqn = [indD, indD, getqrange(4)..., indD, indD], 
 			indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
-			q = [1]
+			q = [0]
 		)
 		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	else
-		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [1])
+		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
 		reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
 	end
 end
 
 function double_ipeps_energy(ipeps::AbstractArray, consts, key)	
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
     SdD, SDD, hx, hy, HORIZONTAL_RULES, VERTICAL_RULES, reinfo = consts
 	T = buildipeps(ipeps, key)
 	M = reshape([bulk(T[i], SDD, indD, dimsD) for i = 1:Ni*Nj], (Ni, Nj))
@@ -83,6 +83,15 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 	end
 	@show etol/Ni/Nj
 	return real(etol)/Ni/Nj
+end
+
+function nodiffenv(ipeps::AbstractArray, consts, key)	
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
+    SdD, SDD, hx, hy, HORIZONTAL_RULES, VERTICAL_RULES, reinfo = consts
+	T = buildipeps(ipeps, key)
+	M = reshape([bulk(T[i], SDD, indD, dimsD) for i = 1:Ni*Nj], (Ni, Nj))
+	ipeps_enviroment(M, key)
+	nothing
 end
 
 function square_ipeps_contraction_vertical(T1, T2, SdD, SDD, env, VERTICAL_RULES, reinfo)
@@ -122,8 +131,8 @@ end
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/", symmetry = :none, atype = Array, D::Int, χ::Int, indD, indχ, dimsD, dimsχ, tol::Real, maxiter::Int, verbose = true)
-    folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)/"
+function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/", symmetry = :none, atype = Array, D::Int, χ::Int, indD, indχ, dimsD, dimsχ, tol::Real, maxiter::Int, miniter::Int, verbose = true)
+	folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)/"
     mkpath(folder)
     chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
@@ -136,19 +145,19 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
 						dir = [-1, -1, 1, 1, 1], 
 						indqn = [indD, indD, getqrange(4)..., indD, indD],                    
 						indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
-						q = [1]
+						q = [0]
 						).dims))
         ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
     end 
 	
     ipeps /= norm(ipeps)
-	key = (folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ)
+	key = (folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
     return ipeps, key
 end
 
 function initial_consts(key)
-	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
 	SdD = U1swapgate(atype, ComplexF64, 4, D; 
 		indqn = [getqrange(4)..., indD, getqrange(4)..., indD], 
 		indims = [u1bulkdims(4)..., dimsD, u1bulkdims(4)..., dimsD]
@@ -157,13 +166,11 @@ function initial_consts(key)
 		indqn = [indD for _ in 1:4], 
 		indims = [dimsD for _ in 1:4]
 	)
-    hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-	hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+    hx = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0, 1.0))), 4, 4, 4, 4)
+	hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0, -1.0))), 4, 4, 4, 4)
 
-	# SdD = asSymmetryArray(SdD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, D, 4, D), indims = u1bulkdims(4, D, 4, D))
-	# SDD = asSymmetryArray(SDD, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(D, D, D, D), indims = u1bulkdims(D, D, D, D))
-	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
-	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1], indqn = getqrange(4, 4, 4, 4), indims = u1bulkdims(4, 4, 4, 4))
+	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
+	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
 
 	VERTICAL_RULES = generate_vertical_rules(D = D, χ = χ)
 	HORIZONTAL_RULES = generate_horizontal_rules(D = D, χ = χ)
@@ -190,7 +197,7 @@ providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
 function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
-    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
     consts = initial_consts(key)
 
     to = TimerOutput()
@@ -218,7 +225,7 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+    folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
     !(isdir(folder)) && mkdir(folder)
     if !(key === nothing)
         logfile = open(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")

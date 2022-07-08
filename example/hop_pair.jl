@@ -1,13 +1,23 @@
 using ADFPEPS
-using ADFPEPS:double_ipeps_energy
+using ADFPEPS:double_ipeps_energy,swapgate, generate_vertical_rules, generate_horizontal_rules
 using CUDA
 using Random
+using VUMPS
 
 CUDA.allowscalar(false)
 Random.seed!(100)
 model = hop_pair(1.0,1.0)
-folder = "E:/1 - research/4.9 - AutoDiff/data/ADFPEPS/"
-ipeps, key = init_ipeps(model; Ni = 2, Nj = 2, atype = Array, folder = folder, D=2, χ=20, tol=1e-10, maxiter=10)
-# folder, model, Ni, Nj, atype, D, χ, tol, maxiter = key
-# double_ipeps_energy(atype(ipeps), model; Ni=Ni,Nj=Nj,χ=χ,maxiter=10,infolder=folder,outfolder=folder)
-res = optimiseipeps(ipeps, key; f_tol = 1e-10, opiter = 100, verbose = true)
+symmetry = :U1
+atype = Array
+folder = "./example/hop_pair/$symmetry/Sz/"
+indD = [-1, 0, 1]
+indχ = collect(-2:2)
+dimsD = [1, 2, 1]
+dimsχ = [1, 4, 6, 4, 1]*2
+D = sum(dimsD)
+χ = sum(dimsχ)
+ipeps, key = init_ipeps(model; Ni=1, Nj=1, symmetry=symmetry, atype=atype, folder=folder, tol=1e-10, maxiter=10,
+miniter = 1, D=D, χ=χ, indD = indD, indχ= indχ, dimsD = dimsD, dimsχ = dimsχ)
+# consts = initial_consts(key)
+# double_ipeps_energy(atype(ipeps), consts, key)
+optimiseipeps(ipeps, key; f_tol = 1e-10, opiter = 100, verbose = true)

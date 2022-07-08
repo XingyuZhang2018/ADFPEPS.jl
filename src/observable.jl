@@ -9,8 +9,9 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, indD, indχ, 
     #     occ,doubleocc = parse.(Float64,split(readline(f), "   "))
     #     close(f)
     # else
-        ipeps, key = init_ipeps(model; Ni=Ni, Nj=Nj, symmetry=symmetry, atype=atype, folder=folder, tol=tol, maxiter=maxiter, D=D, χ=χ, indD = indD, indχ = indχ, dimsD = dimsD, dimsχ = dimsχ)
-        folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, indD, indχ, dimsD, dimsχ = key
+
+        ipeps, key = init_ipeps(model; Ni=Ni, Nj=Nj, symmetry=symmetry, atype=atype, folder=folder, tol=tol, maxiter=maxiter, miniter = 1, D=D, χ=χ, indD = indD, indχ = indχ, dimsD = dimsD, dimsχ = dimsχ)
+        folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
         observable_log = folder*"/D$(D)_χ$(χ)_observable.log"
         
         T = buildipeps(ipeps, key)
@@ -52,7 +53,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, indD, indχ, 
             # if (i,j) in [(2,1),(1,2)]
             #     ρ = U' * ρ * U
             # end
-            ρ = asArray(ρ; indqn = getqrange(4, 4), indims = u1bulkdims(4, 4))
+            ρ = asArray(ρ)
             Occ = ein"pq,pq -> "(ρ,hocc)
             DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
             NNzup = ein"pq,pq -> "(ρ,Nzup)

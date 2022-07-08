@@ -13,6 +13,7 @@ abstract type HamiltonianModel end
 return the hamiltonian of the `model` as a two-site tensor operator.
 "
 function hamiltonian end
+export hamiltonian_hand
 
 @doc raw"
     Hubbard(t::Real,U::Real,μ::Real)
@@ -138,24 +139,59 @@ function hamiltonian(model::hop_pair)
     return h
 end
 
-function Hubbard_hand(model::Hubbard) where T <: Real
+function hamiltonian_hand(model::Hubbard)
     t = model.t
 	U = model.U
     μ = model.μ
     H = zeros(4,4,4,4)
-    H .+= -t * (ein"ab,cd -> acbd"(Cup',Cup) .+ ein"ab,cd -> acbd"(Cup,Cup'))
-    H .+= -t * (ein"ab,cd -> acbd"(Cdn',Cdn) .+ ein"ab,cd -> acbd"(Cdn,Cdn'))
-    H .+= U/4 * (ein"ab,cd -> acbd"(Nup*Ndn,I(4)) .+ ein"ab,cd -> acbd"(I(4),Nup*Ndn))
-    H .+= -μ/4 * (ein"ab,cd -> acbd"(Nup.+Ndn,I(4)) .+ ein"ab,cd -> acbd"(I(4),Nup.+Ndn))
+
+    # t
+    H[1,2,2,1], H[1,4,2,3], H[2,1,1,2], H[2,3,1,4] = -t, -t, -t, -t
+    H[1,3,3,1], H[2,3,4,1], H[3,1,1,3], H[4,1,2,3] = -t, -t, -t, -t
+    H[3,2,4,1], H[3,4,4,3], H[4,1,3,2], H[4,3,3,4] = t, t, t, t
+    H[1,4,3,2], H[2,4,4,2], H[3,2,1,4], H[4,2,2,4] = t, t, t, t
+
+    # U
+    H[1,4,1,4], H[4,1,4,1] = U/4, U/4
+    H[2,4,2,4], H[4,2,4,2] = U/4, U/4
+    H[3,4,3,4], H[4,3,4,3] = U/4, U/4
+    H[4,4,4,4] = U/2
+
+    # μ
+    H[1,2,1,2], H[2,1,2,1], H[1,3,1,3], H[3,1,3,1] = -μ/4, -μ/4, -μ/4, -μ/4
+    H[2,3,2,3], H[3,2,3,2], H[2,2,2,2], H[3,3,3,3] = -μ/2, -μ/2, -μ/2, -μ/2
+    H[1,4,1,4] += -μ/2
+    H[4,1,4,1] += -μ/2
+    H[2,4,2,4] += -3*μ/4
+    H[4,2,4,2] += -3*μ/4
+    H[3,4,3,4] += -3*μ/4
+    H[4,3,4,3] += -3*μ/4
+    H[4,4,4,4] += -μ
     return reshape(H,16,16)
 end
 
-function hop_pair_hand(t::T,γ::T) where T <: Real
+function hamiltonian_hand(model::hop_pair)
+    t = model.t
+	γ = model.γ
     H = zeros(4,4,4,4)
-    H .+= -t * (ein"ab,cd -> acbd"(Cup',Cup) .+ ein"ab,cd -> acbd"(Cup,Cup'))
-    H .+= -t * (ein"ab,cd -> acbd"(Cdn',Cdn) .+ ein"ab,cd -> acbd"(Cdn,Cdn'))
-    H .+= γ * (ein"ab,cd -> acbd"(Cup',Cdn') .- ein"ab,cd -> acbd"(Cdn',Cup'))
-    H .+= γ * (ein"ab,cd -> acbd"(Cup,Cdn) .- ein"ab,cd -> acbd"(Cdn,Cup))
+
+    # t
+    H[1,2,2,1], H[1,4,2,3], H[2,1,1,2], H[2,3,1,4] = -t, -t, -t, -t
+    H[1,3,3,1], H[2,3,4,1], H[3,1,1,3], H[4,1,2,3] = -t, -t, -t, -t
+    H[3,2,4,1], H[3,4,4,3], H[4,1,3,2], H[4,3,3,4] = t, t, t, t
+    H[1,4,3,2], H[2,4,4,2], H[3,2,1,4], H[4,2,2,4] = t, t, t, t
+
+    # γ
+    H[1,1,2,3], H[2,3,1,1] =  γ, γ
+    H[3,1,4,3], H[4,3,3,1] = -γ,-γ
+    H[1,2,2,4], H[2,4,1,2] = -γ,-γ
+    H[3,2,4,4], H[4,4,3,2] =  γ, γ
+
+    # -γ
+    H[1,1,3,2], H[3,2,1,1] = -γ,-γ
+    H[2,1,4,2], H[4,2,2,1] = -γ,-γ
+    H[1,3,3,4], H[3,4,1,3] = -γ,-γ
+    H[2,3,4,4], H[4,4,2,3] = -γ,-γ
     return reshape(H,16,16)
 end
 

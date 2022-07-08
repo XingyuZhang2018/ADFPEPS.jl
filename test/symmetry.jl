@@ -15,12 +15,6 @@ using OMEinsum
     @test sgsymmetry == U1sg
 
     @show U1sg
-    h = [0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]
-    @show getqrange(4, 4) u1bulkdims(4, 4)
-    hs = asSymmetryArray(h, Val(symmetry); dir = [-1,1], indqn = getqrange(4, 4), indims = u1bulkdims(4, 4))
-    @show hs
-    hst = asArray(hs; indqn = getqrange(4, 4), indims = u1bulkdims(4, 4))
-    @test h == hst
 end
 
 @testset "hamiltonian with $symmetry symmetry" for symmetry in [:U1]

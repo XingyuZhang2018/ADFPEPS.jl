@@ -53,9 +53,18 @@ end
                                                                           1.0, 0.0, 0.0,1.0]                                                                                                                                                                                         
 end
 
-@testset "hop_pair_hand" begin
-    H = hop_pair_hand(rand(),rand()) 
-    @test H == H'                                                                                                            
+@testset "Hubbard_hand" begin
+    model = Hubbard(1.0, 12.0, 6.0)
+    h1 = reshape(hamiltonian(model), 4, 4, 4, 4)
+    h2 = reshape(hamiltonian_hand(model), 4, 4, 4, 4)
+    @test h1 == h2                                                                                                     
+end
+
+@testset "hop_pair" begin
+    model = hop_pair(1.0, 1.0)
+    h1 = reshape(hamiltonian(model), 4, 4, 4, 4)
+    h2 = reshape(hamiltonian_hand(model), 4, 4, 4, 4)
+    @test h1 == h2                                                                                               
 end
 
 @testset "observable" begin
