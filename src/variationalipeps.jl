@@ -150,7 +150,7 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
         ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
         verbose && println("random initial iPEPS $chkp_file")
     end 
-	
+	println("parameters: $(prod(size(ipeps))/Int(ceil(Ni*Nj/2)))")
     ipeps /= norm(ipeps)
 	key = (folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
     return ipeps, key
@@ -167,7 +167,7 @@ function initial_consts(key)
 		indims = [dimsD for _ in 1:4]
 	)
     hx = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0, 1.0))), 4, 4, 4, 4)
-	hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0, -1.0))), 4, 4, 4, 4)
+	hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0,-1.0))), 4, 4, 4, 4)
 
 	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
 	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
