@@ -3,18 +3,18 @@ using ADFPEPS:double_ipeps_energy,swapgate, generate_vertical_rules, generate_ho
 using CUDA
 using Random
 using VUMPS
-using ProfileView
+# using ProfileView
 
 CUDA.allowscalar(false)
 Random.seed!(100)
-model = Hubbard(1.0, 12.0, 6.0)
+model = Hubbard(1.0, 0.0, 0.0)
 symmetry = :U1
-atype = Array
+atype = CuArray
 folder = "./example/Hubbard/$symmetry/particle/"
-indD = [0, 1, 2]
+indD = [-1, 0, 1]
 indχ = [-2, -1, 0, 1, 2]
-dimsD = [1, 2, 1]
-dimsχ = [1, 4, 6, 4, 1]
+dimsD = [1, 4, 1]
+dimsχ = [10, 20, 40, 20, 10]
 D = sum(dimsD)
 χ = sum(dimsχ)
 ipeps, key = init_ipeps(model; Ni=2, Nj=2, symmetry=symmetry, atype=atype, folder=folder, tol=1e-10, maxiter=10,

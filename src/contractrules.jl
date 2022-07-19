@@ -35,8 +35,8 @@ function generate_vertical_rules(;D=2,χ=20)
 	sd = Dict(i=>size_dict[i] for i = 1:40)
 
 	# for seed =40:100
-	seed = 60
-	Random.seed!(60)
+	seed = 100
+	Random.seed!(seed)
 	optcode = optimize_tree(eincode,sd; sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0)
 
 
@@ -82,7 +82,7 @@ function generate_horizontal_rules(;D=2,χ=20)
 	sd = Dict(i=>size_dict[i] for i = 1:40)
 	
 	# for seed = 1:100
-	seed = 4
+	seed = 100
 	Random.seed!(seed)
 	optcode = optimize_tree(eincode,sd; sc_target=28, βs=0.1:0.1:10, ntrials=3, niters=100, sc_weight=4.0)
 	print("Horizontal Contraction Complexity(seed=$(seed))",OMEinsum.timespace_complexity(optcode,sd),"\n")
