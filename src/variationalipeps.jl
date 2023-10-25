@@ -139,9 +139,13 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
         ipeps = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
-		symmetry == :none && (symmetry = :Z2)
+		if symmetry == :none
+			initial_symmetry = :Z2
+		else
+			initial_symmetry = symmetry
+		end
 		randdims = sum(prod.(
-			zerosinitial(Val(symmetry), atype, ComplexF64, D, D, 4, D, D; 
+			zerosinitial(Val(initial_symmetry), atype, ComplexF64, D, D, 4, D, D; 
 						dir = [-1, -1, 1, 1, 1], 
 						indqn = [indD, indD, getqrange(4)..., indD, indD],                    
 						indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
@@ -158,16 +162,26 @@ end
 
 function initial_consts(key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
-	SdD = U1swapgate(atype, ComplexF64, 4, D; 
-		indqn = [getqrange(4)..., indD, getqrange(4)..., indD], 
-		indims = [u1bulkdims(4)..., dimsD, u1bulkdims(4)..., dimsD]
-	)
-	SDD = U1swapgate(atype, ComplexF64, D, D; 
-		indqn = [indD for _ in 1:4], 
-		indims = [dimsD for _ in 1:4]
-	)
-    hx = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0, 1.0))), 4, 4, 4, 4)
-	hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(1.0,-1.0))), 4, 4, 4, 4)
+	if symmetry == :U1
+		SdD = U1swapgate(atype, ComplexF64, 4, D; 
+			indqn = [getqrange(4)..., indD, getqrange(4)..., indD], 
+			indims = [u1bulkdims(4)..., dimsD, u1bulkdims(4)..., dimsD]
+		)
+		SDD = U1swapgate(atype, ComplexF64, D, D; 
+			indqn = [indD for _ in 1:4], 
+			indims = [dimsD for _ in 1:4]
+		)
+	else
+		SdD = atype(swapgate(4, D))
+		SDD = atype(swapgate(D, D))
+	end
+	if model isa hop_pair
+		hx = reshape(atype{ComplexF64}(hamiltonian(hop_pair(model.t, model.γ))), 4, 4, 4, 4)
+		hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(model.t,-model.γ))), 4, 4, 4, 4)
+	else
+		hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+		hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+	end
 
 	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
 	hy = asSymmetryArray(hy, Val(symmetry); dir = [-1,-1,1,1])
