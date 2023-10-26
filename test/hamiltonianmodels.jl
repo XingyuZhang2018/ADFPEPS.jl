@@ -103,3 +103,8 @@ end
         @show i,j,k,l,sum(H)
     end
 end
+
+@testset "tJ" begin
+    @test tJ(1.0,1.0) isa HamiltonianModel
+    @test hamiltonian(tJ(1.0,1.0)) == hamiltonian_hand(tJ(1.0,1.0))
+end

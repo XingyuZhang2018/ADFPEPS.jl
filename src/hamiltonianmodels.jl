@@ -1,10 +1,6 @@
 using ITensors
 using OMEinsum
 
-const Cup = [0.0 1 0 0; 0 0 0 0; 0 0 0 1; 0 0 0 0]
-const Cdn = [0.0 0 1 0; 0 0 0 1; 0 0 0 0; 0 0 0 0]
-const Nup = [0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1]
-const Ndn = [0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1]
 abstract type HamiltonianModel end
 
 @doc raw"
@@ -195,3 +191,65 @@ function hamiltonian_hand(model::hop_pair)
     return reshape(H,16,16)
 end
 
+@doc raw"
+    tJ(t::Real,γ::Real)
+
+return a struct representing tJ model
+"
+struct tJ{T<:Real} <: HamiltonianModel
+    t::T
+	J::T
+end
+
+"""
+	hamiltonian(model::tJ)
+"""
+function hamiltonian(model::tJ)
+	t = model.t
+    J = model.J
+    ampo = AutoMPO()
+    sites = siteinds("tJ",2)
+    ampo .+= -t, "Cdagup",1,"Cup",2
+    ampo .+= -t, "Cdagup",2,"Cup",1
+    ampo .+= -t, "Cdagdn",1,"Cdn",2
+    ampo .+= -t, "Cdagdn",2,"Cdn",1
+    
+    ampo .+= J/2, "S+",1,"S-",2
+    ampo .+= J/2, "S-",1,"S+",2
+    ampo .+= J, "Sz",1,"Sz",2
+
+    ampo .+= -J/4, "Ntot",1,"Ntot",2
+
+    H = MPO(ampo,sites)
+
+    H1 = Array(H[1],inds(H[1])...)
+    H2 = Array(H[2],inds(H[2])...)
+    h = reshape(ein"aij,apq->ipjq"(H1,H2),9,9)
+
+    return h
+end
+
+function hamiltonian_hand(model::tJ)
+    t = model.t
+    J = model.J
+    H = zeros(9,9)
+
+    H[2,4], H[3,7], H[4,2], H[7,3] = -t, -t, -t, -t
+    H[5,5], H[9,9] = J/4, J/4
+    H[6,6], H[8,8] = -J/4, -J/4
+    H[6,8], H[8,6] = J/2, J/2
+
+    return H
+end
+
+function hamiltonian_hand(model::tJ)
+    t = model.t
+    J = model.J
+    H = zeros(9,9)
+
+    H[2,4], H[3,7], H[4,2], H[7,3] = -t, -t, -t, -t
+    H[6,8], H[8,6] = J/2, J/2
+    H[6,6], H[8,8] = -J/2, -J/2
+
+    return H
+end
