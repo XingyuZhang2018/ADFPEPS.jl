@@ -41,10 +41,8 @@ function hamiltonian(model::Hubbard)
         ampo .+= 1/4*U, "Nupdn", 2
     end
     if μ ≠ 0
-        ampo .+= -1/4*μ, "Nup", 1
-        ampo .+= -1/4*μ, "Ndn", 1
-        ampo .+= -1/4*μ, "Nup", 2
-        ampo .+= -1/4*μ, "Ndn", 2
+        ampo .+= -1/4*μ, "Ntot", 1
+        ampo .+= -1/4*μ, "Ntot", 2
     end
     H = MPO(ampo,sites)
 
@@ -199,6 +197,7 @@ return a struct representing tJ model
 struct tJ{T<:Real} <: HamiltonianModel
     t::T
 	J::T
+    μ::T
 end
 
 """
@@ -207,6 +206,7 @@ end
 function hamiltonian(model::tJ)
 	t = model.t
     J = model.J
+    μ = model.μ
     ampo = AutoMPO()
     sites = siteinds("tJ",2)
     ampo .+= -t, "Cdagup",1,"Cup",2
@@ -220,6 +220,11 @@ function hamiltonian(model::tJ)
 
     ampo .+= -J/4, "Ntot",1,"Ntot",2
 
+    if μ ≠ 0
+        ampo .+= μ, "Ntot", 1
+        ampo .+= μ, "Ntot", 2
+    end
+
     H = MPO(ampo,sites)
 
     H1 = Array(H[1],inds(H[1])...)
@@ -232,24 +237,37 @@ end
 function hamiltonian_hand(model::tJ)
     t = model.t
     J = model.J
+    μ = model.μ
     H = zeros(9,9)
 
-    H[2,4], H[3,7], H[4,2], H[7,3] = -t, -t, -t, -t
-    H[5,5], H[9,9] = J/4, J/4
-    H[6,6], H[8,8] = -J/4, -J/4
-    H[6,8], H[8,6] = J/2, J/2
+    # -t
+    for (i,j) in [[2, 4],[3, 7],[4, 2],[7, 3]]
+        H[i,j] += -t
+    end
 
-    return H
-end
+    # J
+    for (i,j) in [[5,5],[9,9]]
+        H[i,j] += J/4
+    end
+    for (i,j) in [[6,6],[8,8]]
+        H[i,j] += -J/4
+    end
+    for (i,j) in [[6,8],[8,6]]
+        H[i,j] += J/2
+    end
 
-function hamiltonian_hand(model::tJ)
-    t = model.t
-    J = model.J
-    H = zeros(9,9)
+    # -J/4
+    for (i,j) in [[5,5],[6,6],[8,8],[9,9]]
+        H[i,j] += -J/4
+    end
 
-    H[2,4], H[3,7], H[4,2], H[7,3] = -t, -t, -t, -t
-    H[6,8], H[8,6] = J/2, J/2
-    H[6,6], H[8,8] = -J/2, -J/2
+    # μ
+    for (i,j) in [[2,2],[3,3],[4,4],[7,7]]
+        H[i,j] += μ
+    end
+    for (i,j) in [[5,5],[6,6],[8,8],[9,9]]
+        H[i,j] += 2*μ
+    end
 
     return H
 end

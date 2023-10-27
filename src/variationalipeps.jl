@@ -45,7 +45,7 @@ function buildipeps(ipeps, key)
 		)
 		reshape([U1Array(info.qn, info.dir, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1) for i = 1:Ni*Nj], (Ni, Nj))
 	else
-		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,4,D,D; dir = [-1,-1,1,1,1], q = [0])
+		info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,3,D,D; dir = [-1,-1,1,1,1], q = [0])
 		reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
 	end
 end
@@ -145,10 +145,10 @@ function init_ipeps(model::HamiltonianModel; Ni::Int, Nj::Int, folder = "./data/
 			initial_symmetry = symmetry
 		end
 		randdims = sum(prod.(
-			zerosinitial(Val(initial_symmetry), atype, ComplexF64, D, D, 4, D, D; 
+			zerosinitial(Val(initial_symmetry), atype, ComplexF64, D, D, 3, D, D; 
 						dir = [-1, -1, 1, 1, 1], 
-						indqn = [indD, indD, getqrange(4)..., indD, indD],                    
-						indims = [dimsD, dimsD, u1bulkdims(4)..., dimsD, dimsD], 
+						indqn = [indD, indD, getqrange(3)..., indD, indD],                    
+						indims = [dimsD, dimsD, u1bulkdims(3)..., dimsD, dimsD], 
 						q = [0]
 						).dims))
         ipeps = randn(ComplexF64, randdims, Int(ceil(Ni*Nj/2)))
@@ -172,15 +172,15 @@ function initial_consts(key)
 			indims = [dimsD for _ in 1:4]
 		)
 	else
-		SdD = atype(swapgate(4, D))
+		SdD = atype(swapgate(3, D))
 		SDD = atype(swapgate(D, D))
 	end
 	if model isa hop_pair
 		hx = reshape(atype{ComplexF64}(hamiltonian(hop_pair(model.t, model.γ))), 4, 4, 4, 4)
 		hy = reshape(atype{ComplexF64}(hamiltonian(hop_pair(model.t,-model.γ))), 4, 4, 4, 4)
 	else
-		hx = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
-		hy = reshape(atype{ComplexF64}(hamiltonian(model)), 4, 4, 4, 4)
+		hx = reshape(atype{ComplexF64}(hamiltonian(model)), 3, 3, 3, 3)
+		hy = reshape(atype{ComplexF64}(hamiltonian(model)), 3, 3, 3, 3)
 	end
 
 	hx = asSymmetryArray(hx, Val(symmetry); dir = [-1,-1,1,1])
