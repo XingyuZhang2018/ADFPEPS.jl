@@ -1,5 +1,4 @@
 using ADFPEPS
-using ADFPEPS:Nup,Ndn
 using Test
 using ITensors
 using OMEinsum
@@ -105,6 +104,21 @@ end
 end
 
 @testset "tJ" begin
-    @test tJ(1.0,1.0) isa HamiltonianModel
-    @test hamiltonian(tJ(1.0,1.0)) == hamiltonian_hand(tJ(1.0,1.0))
+    @test tJ(1.0,1.0,0.5) isa HamiltonianModel
+    @test hamiltonian(tJ(1.0,1.0,0.5)) == hamiltonian_hand(tJ(1.0,1.0,0.5))
+end
+
+@testset "tJ_bilayer" begin
+    model = tJ_bilayer(1.1,1.2,1.3,1.4,1.5)
+    @test model isa HamiltonianModel
+
+    H二, H⊥ = hamiltonian(model)
+    H二 = reshape(H二, 81,81)
+    @test H二' == H二'
+    @test H⊥' == H⊥
+    
+    h1 = hamiltonian(model)
+    h2 = hamiltonian_hand(model)
+    @test h1[1] ≈ h2[1]
+    @test h1[2] ≈ h2[2]
 end
