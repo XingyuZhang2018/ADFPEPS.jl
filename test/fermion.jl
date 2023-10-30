@@ -1,7 +1,7 @@
 using ADFPEPS
-using ADFPEPS: parity_conserving
+using ADFPEPS: parity_conserving, index_to_parity
 using ADFPEPS: swapgate, fdag, bulk
-using VUMPS
+using TeneT
 using Random
 using Test
 using OMEinsum
@@ -25,4 +25,10 @@ end
 
     @test bulk(A, SDD) !== nothing
     # @test asArray(bulk(A, SDD)) ≈ bulk(Atensor, SDDtensor) # before reshape
+end
+
+@testset "index_to_parity(" begin
+    for i in 1:9
+        show(index_to_parity(i))
+    end
 end

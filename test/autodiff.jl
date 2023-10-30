@@ -4,7 +4,7 @@ using CUDA
 using LinearAlgebra
 using Random
 using Test
-using VUMPS:num_grad
+using TeneT:num_grad
 using Zygote
 CUDA.allowscalar(false)
 

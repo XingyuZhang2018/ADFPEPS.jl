@@ -1,5 +1,5 @@
 using JLD2
-using VUMPS:SquareVUMPSRuntime, ALCtoAC
+using TeneT:SquareVUMPSRuntime, ALCtoAC
 
 function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, indD, indχ, dimsD, dimsχ, tol=1e-10, maxiter=10)
     
@@ -43,7 +43,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, D, χ, indD, indχ, 
         Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
         Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 0 0 2]./2)
         # U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
-        # hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1], indqn = getqrange(size(x)...), indims = u1bulkdims(size(x)...)), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
+        # hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1], indqn = getqrange(size(x)...), indims = getblockdims(size(x)...)), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
         occ = 0
         doubleocc = 0
         for j = 1:Nj, i = 1:Ni

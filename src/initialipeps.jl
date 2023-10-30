@@ -11,7 +11,7 @@ function initialfromD(model, folder, Ni, Nj, symmetry,
     oldinfo = zerosinitial(Val(symmetry), Array, ComplexF64, oldD, oldD, 4, oldD, oldD; 
 						dir = [-1, -1, 1, 1, 1], 
 						indqn = [oldindD, oldindD, getqrange(4)..., oldindD, oldindD],                    
-						indims = [olddimsD, olddimsD, u1bulkdims(4)..., olddimsD, olddimsD], 
+						indims = [olddimsD, olddimsD, getblockdims(4)..., olddimsD, olddimsD], 
 						q = [0]
 						)
     oldipeps = [U1Array(oldinfo.qn, oldinfo.dir, [reshape(atype(oldipeps[1 + sum(prod.(oldinfo.dims[1:j-1])):sum(prod.(oldinfo.dims[1:j])), i]), tuple(oldinfo.dims[j]...)) for j in 1:length(oldinfo.dims)], oldinfo.size, oldinfo.dims, 1) for i = 1:Int(ceil(Ni*Nj/2))]
@@ -19,7 +19,7 @@ function initialfromD(model, folder, Ni, Nj, symmetry,
     newipeps = [zerosinitial(Val(symmetry), Array, ComplexF64, newD, newD, 4, newD, newD; 
                     dir = [-1, -1, 1, 1, 1], 
                     indqn = [newindD, newindD, getqrange(4)..., newindD, newindD],                    
-                    indims = [newdimsD, newdimsD, u1bulkdims(4)..., newdimsD, newdimsD], 
+                    indims = [newdimsD, newdimsD, getblockdims(4)..., newdimsD, newdimsD], 
                     q = [0]
                     ) for _ = 1:Int(ceil(Ni*Nj/2))]
 

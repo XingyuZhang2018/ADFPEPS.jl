@@ -30,7 +30,7 @@ function generate_vertical_rules(;D=2,χ=20)
 	)
 		
 	size_dict = [D for i = 1:40]
-	size_dict[[3;8;14;15;30;32;20;25]] .= 4
+	size_dict[[3;8;14;15;30;32;20;25]] .= 9
 	size_dict[35:40] .= χ
 	sd = Dict(i=>size_dict[i] for i = 1:40)
 
@@ -77,7 +77,7 @@ function generate_horizontal_rules(;D=2,χ=20)
 	)
 
     size_dict = [D for i = 1:40]
-	size_dict[[3;8;13;18;21;23;24;25]] .= 4
+	size_dict[[3;8;13;18;21;23;24;25]] .= 9
 	size_dict[34:39] .= χ
 	sd = Dict(i=>size_dict[i] for i = 1:40)
 	
@@ -91,3 +91,33 @@ function generate_horizontal_rules(;D=2,χ=20)
 	return optcode
 end
 # const HORIZONTAL_RULES = generate_horizontal_rules()
+
+function generate_onsite_rules(;D=2,χ=20)
+    eincode = EinCode(((1,2,3,4,5),# T1
+
+	(10,7,6,8,9),#T2 (dag)
+
+    (14,4,9,16), #swapgate(nl,nu)
+    (18,10,2,12), #swapgate(nl,nu)
+
+    (11,7,18,17), #E1 FLo
+    (11,12,1,13), #E2 ACu
+    (13,14,5,15), #E4 FRo
+    (17,8,16,15), #E6 ACd
+	),
+	(3,6) #hamiltonian (ij di dj)
+	)
+
+	size_dict = [D for i = 1:18]
+	size_dict[[3;6]] .= 9
+	size_dict[[11;13;15;17]] .= χ
+	sd = Dict(i=>size_dict[i] for i = 1:18)
+	# for seed = 1:100
+	seed = 4
+	Random.seed!(seed)
+	optcode = optimize_tree(eincode,sd; sc_target=28, βs=0.1:0.1:10, ntrials=3, niters=100, sc_weight=4.0)
+	print("On site Contraction Complexity(seed=$(seed))",OMEinsum.timespace_complexity(optcode,sd),"\n")
+	# end
+
+	return optcode
+end

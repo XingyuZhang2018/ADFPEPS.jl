@@ -8,15 +8,16 @@ CUDA.allowscalar(false)
 Random.seed!(100)
 
  indD = [0, 1]
- indχ = [-2, -1, 0, 1, 2]
 dimsD = [1, 1]
-dimsχ = [1, 4, 6, 4, 1]
+ indχ = [-1, 0, 1]
+dimsχ = [1, 2, 1]
+symmetry = :U1
 
-ipeps,key = init_ipeps(hop_pair(1.0,1.0); 
-                       Ni = 1, 
-                       Nj = 1, 
-                 symmetry = :none, 
-                    atype = Array, 
+ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
+                       Ni = 2, 
+                       Nj = 2, 
+                 symmetry = symmetry, 
+                    atype = CuArray, 
                    folder = "./example/$symmetry/",
                       tol = 1e-10, 
                   maxiter = 10, 
@@ -31,5 +32,5 @@ ipeps,key = init_ipeps(hop_pair(1.0,1.0);
 # double_ipeps_energy(atype(ipeps), consts, key)
 optimiseipeps(ipeps, key; 
                 f_tol = 1e-10, 
-               opiter = 100, 
+               opiter = 200, 
               verbose = true)

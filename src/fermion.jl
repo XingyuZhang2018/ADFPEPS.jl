@@ -2,8 +2,8 @@
 
 using BitBasis
 using CUDA
-using VUMPS
-using VUMPS: dtr, getparity
+using TeneT
+using TeneT: dtr, getparity
 using Zygote
 
 include("contractrules.jl")
@@ -85,7 +85,8 @@ julia> swapgate(2,4)
 function swapgate(d::Int, D::Int)
 	S = ein"ij,kl->ikjl"(Matrix{ComplexF64}(I,d,d),Matrix{ComplexF64}(I,D,D))
 	for j = 1:D, i = 1:d
-		sum(bitarray(i-1,Int(ceil(log2(d)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(D)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
+		# sum(bitarray(i-1,Int(ceil(log2(d)))))%2 != 0 && sum(bitarray(j-1,Int(ceil(log2(D)))))%2 != 0 && (S[i,j,:,:] .= -S[i,j,:,:])
+        index_to_parity(i) != 0 && index_to_parity(j) != 0 && (S[i,j,i,j] = -1)
 	end
 	return S
 end
@@ -107,7 +108,9 @@ function U1swapgate(atype, dtype, d::Int, D::Int; indqn::Vector{Vector{Int}}, in
             push!(tensor, tensori)
         end
     end
-    U1Array(qn, dir, tensor, (d, D, d, D), dims, 1)
+    p = sortperm(qn)
+    tensor = vcat(map(vec, tensor[p])...)
+    U1Array(qn[p], dir, tensor, (d, D, d, D), dims[p], 1)
 end
 
 function swapgatedD(d::Int, D::Int)
@@ -215,8 +218,23 @@ function bulkop(T::AbstractArray, SDD::AbstractArray, indD, dimsD)
 	nu,nl,nf,nd,nr = size(T)
 	Tdag = fdag(T, SDD)
     doublelayerop = ein"((abcde,fgnhi),lfbm), dkji-> glhjkemacn"(T,Tdag,SDD,SDD)
-    indqn = [[indD for _ in 1:8]; getqrange(4, 4)]
-    indims = [[dimsD for _ in 1:8]; u1bulkdims(4, 4)]
+    indqn = [[indD for _ in 1:8]; getqrange(nf, nf)]
+    indims = [[dimsD for _ in 1:8]; getblockdims(nf, nf)]
     symmetryreshape(doublelayerop, nl^2,nd^2,nr^2,nu^2,nf,nf; reinfo = (nothing, nothing, nothing, indqn, indims, nothing, nothing))[1]
 	# return	_arraytype(T)(reshape(ein"((abcde,fgnhi),bflm),dijk -> glhjkencma"(T,Tdag,SDD,SDD),nu^2,nl^2,nd^2,nr^2,nf,nf))
+end
+
+function index_to_parity(n::Int)
+    n -= 1
+    n == 0 && return 0
+
+    ternary = []
+    while n > 0
+        remainder = n % 3
+        remainder == 2 && (remainder = 1)
+        pushfirst!(ternary, remainder)
+        n = div(n, 3)
+    end
+
+    return sum(ternary) % 2
 end
