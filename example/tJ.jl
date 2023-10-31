@@ -10,14 +10,14 @@ Random.seed!(100)
  indD = [0, 1]
 dimsD = [1, 1]
  indχ = [-1, 0, 1]
-dimsχ = [1, 2, 1]
+dimsχ = [3, 3, 3]
 symmetry = :U1
 
 ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
                        Ni = 2, 
                        Nj = 2, 
                  symmetry = symmetry, 
-                    atype = CuArray, 
+                    atype = Array, 
                    folder = "./example/$symmetry/",
                       tol = 1e-10, 
                   maxiter = 10, 
@@ -33,4 +33,6 @@ ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0);
 optimiseipeps(ipeps, key; 
                 f_tol = 1e-10, 
                opiter = 200, 
+           maxiter_ad = 10,
+           miniter_ad = 1,
               verbose = true)

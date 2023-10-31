@@ -21,11 +21,23 @@ function ipeps_enviroment(M::AbstractArray, key)
 	folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
 
 	# TeneT
-	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = obs_env(M; χ=χ, maxiter=maxiter, miniter=miniter, tol = tol, verbose=true, savefile = true, infolder=folder, outfolder=folder, updown = true, downfromup = false, show_every=Inf, U1info = (indD, indχ, dimsD, dimsχ))
+	_, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FLu, FRu = obs_env(M; 
+																χ=χ, 
+																maxiter=maxiter, 
+																miniter=miniter, 
+																tol = tol, 
+																verbose=true, 
+																savefile = true, 
+																infolder=folder, 
+																outfolder=folder, 
+																updown = true, 
+																downfromup = false, 
+																show_every=Inf, 
+																U1info = (indD, indχ, dimsD, dimsχ))
 
 	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
-	return FLo, ACu, ARu, FRo, ARd, ACd, FL, FR
+	return FLo, ACu, ARu, FRo, ARd, ACd, FLu, FRu
 end
 
 ABBA(i) = i in [1,4] ? 1 : 2
@@ -59,6 +71,7 @@ function double_ipeps_energy(ipeps::AbstractArray, consts, key)
 
 	etol = 0
 	for j = 1:Nj, i = 1:Ni
+		println("==========$(i),$(j)==========")
 		ir = Ni + 1 - i
 		jr = j + 1 - (j==Nj) * Nj
 		
@@ -227,21 +240,32 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::AbstractArray, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20))
+function optimiseipeps(ipeps::AbstractArray, key; 
+						f_tol = 1e-6, opiter = 100, 
+						maxiter_ad = 10, miniter_ad = 1,
+						verbose= false, 
+						optimmethod = LBFGS(m = 20))
+
     folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
     consts = initial_consts(key)
 
-    to = TimerOutput()
-    f(x) = @timeit to "forward" double_ipeps_energy(atype(x), consts, key)
-    ff(x) = double_ipeps_energy(atype(x), consts, key)
-    g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
+	keyback = folder, model, Ni, Nj, symmetry, atype, D, χ, tol, maxiter_ad, miniter_ad, indD, indχ, dimsD, dimsχ
+
+    f(x) = double_ipeps_energy(atype(x), consts, key)
+	ff(x) = double_ipeps_energy(atype(x), consts, keyback)
+	function g(x)
+        println("for backward convergence:")
+        f(x)
+        println("true backward:")
+        grad = Zygote.gradient(ff,atype(x))[1]
+        return grad
+    end
     res = optimize(f, g, 
         ipeps, optimmethod,inplace = false,
         Optim.Options(f_tol=f_tol, iterations=opiter,
         extended_trace=true,
         callback=os->writelog(os, key)),
         )
-    println(to)
     return res
 end
 
