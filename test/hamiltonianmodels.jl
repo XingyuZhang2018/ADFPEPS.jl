@@ -3,6 +3,7 @@ using Test
 using ITensors
 using OMEinsum
 using LinearAlgebra
+using TeneT
 
 @testset "Hubbard" begin
     @test Hubbard(1.0,1.0,1.0) isa HamiltonianModel

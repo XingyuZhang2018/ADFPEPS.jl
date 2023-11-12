@@ -194,10 +194,10 @@ end
 
 return a struct representing tJ model
 "
-struct tJ{T<:Real} <: HamiltonianModel
-    t::T
-	J::T
-    μ::T
+struct tJ <: HamiltonianModel
+    t::Real
+	J::Real
+    μ::Real
 end
 
 """
@@ -229,7 +229,7 @@ function hamiltonian(model::tJ)
 
     H1 = Array(H[1],inds(H[1])...)
     H2 = Array(H[2],inds(H[2])...)
-    h = reshape(ein"aij,apq->ipjq"(H1,H2),9,9)
+    h = ein"aij,apq->ipjq"(H1,H2)
 
     return h
 end
@@ -269,7 +269,7 @@ function hamiltonian_hand(model::tJ)
         H[i,j] += 2*μ
     end
 
-    return H
+    return reshape(H,3,3,3,3)
 end
 
 @doc raw"
@@ -315,13 +315,6 @@ function hamiltonian(model::tJ_bilayer)
     ampo .+= -J二/4, "Ntot",1,"Ntot",3
     ampo .+= -J二/4, "Ntot",2,"Ntot",4
 
-    if μ ≠ 0
-        ampo .+= μ, "Ntot",1
-        ampo .+= μ, "Ntot",2
-        ampo .+= μ, "Ntot",3
-        ampo .+= μ, "Ntot",4
-    end
-
     H = MPO(ampo,sites)
 
     H1 = Array(H[1],inds(H[1])...)
@@ -340,6 +333,11 @@ function hamiltonian(model::tJ_bilayer)
     ampo .+= J⊥/2, "S+",1,"S-",2
     ampo .+= J⊥/2, "S-",1,"S+",2
     ampo .+= J⊥, "Sz",1,"Sz",2
+
+    if μ ≠ 0
+        ampo .+= μ, "Ntot",1
+        ampo .+= μ, "Ntot",2
+    end
 
     H = MPO(ampo,sites)
 
@@ -417,13 +415,7 @@ function hamiltonian_hand(model::tJ_bilayer)
         ]
     )
 
-    Hμ = μ * mapreduce(x->kron(x[1], x[2]), +,
-        [
-         [Ntot1+Ntot2,I(9)], [I(9),Ntot1+Ntot2]
-        ]
-    )
-
-    H二 = Ht + HJ + HJ4 + Hμ
+    H二 = Ht + HJ + HJ4 
     H二 = reshape(H二,9,9,9,9)
 
     Ht = -t⊥ * mapreduce(x->kron(x[1], x[2]), +,
@@ -439,7 +431,12 @@ function hamiltonian_hand(model::tJ_bilayer)
         ]
     )
 
-    H⊥ = Ht + HJ
+    Hμ = μ * mapreduce(x->kron(x[1], x[2]), +,
+        [
+         [Cu'*Cu+Cd'*Cd,I(3)], [I(3),Cu'*Cu+Cd'*Cd]
+        ]
+    )
+    H⊥ = Ht + HJ + Hμ
 
     return H二,  H⊥
 end

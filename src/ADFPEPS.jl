@@ -6,6 +6,7 @@ export observable
 
 include("utils.jl")
 include("hamiltonianmodels.jl")
+include("contractrules.jl")
 include("fermion.jl")
 include("variationalipeps.jl")
 include("autodiff.jl")
