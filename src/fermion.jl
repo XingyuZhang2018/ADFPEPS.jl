@@ -1,6 +1,5 @@
 # contains some utils for Fermionic Tensor Network Construction
 
-using BitBasis
 using CUDA
 using TeneT
 using TeneT: dtr

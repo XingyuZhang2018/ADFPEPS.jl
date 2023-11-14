@@ -1,8 +1,6 @@
 using FileIO
-using HDF5
 using Optim, LineSearches
 using LinearAlgebra: I, norm
-using TimerOutputs
 using Zygote
 
 export init_ipeps, initial_consts
@@ -46,6 +44,7 @@ ABBA(i) = i in [1,4] ? 1 : 2
 function buildipeps(ipeps, key)
 	folder, model, Ni, Nj, symmetry, sitetype, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
 	d = 9
+	ipeps /= norm(ipeps)
 	if symmetry == :none
 		# info = Zygote.@ignore zerosinitial(Val(:Z2), atype, ComplexF64, D,D,3,D,D; dir = [-1,-1,1,1,1], q = [0])
 		# reshape([asArray(Z2Array(info.parity, [reshape(atype(ipeps[1 + sum(prod.(info.dims[1:j-1])):sum(prod.(info.dims[1:j])), ABBA(i)]), tuple(info.dims[j]...)) for j in 1:length(info.dims)], info.size, info.dims, 1)) for i = 1:Ni*Nj], (Ni, Nj))
