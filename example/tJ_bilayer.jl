@@ -10,8 +10,7 @@ Random.seed!(100)
  indD = [0,1]
 dimsD = [2,2]
  indχ = [0,1]
-dimsχ = [5,5]
-
+dimsχ = [10,10]
 sitetype = tJZ2()
 
 ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
@@ -19,9 +18,9 @@ ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0);
                        Nj = 1, 
                  sitetype = sitetype,
                     atype = Array, 
-                   folder = "./example/$siteinds/",
+                   folder = "./example/$sitetype/",
                       tol = 1e-10, 
-                  maxiter = 10, 
+                  maxiter = 50, 
                   miniter = 1, 
                         d = 9,      
                         D = sum(dimsD), 
