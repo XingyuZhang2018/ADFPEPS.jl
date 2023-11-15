@@ -273,6 +273,8 @@ function optimiseipeps(ipeps::AbstractArray, key;
         f(x)
         println("true backward:")
         grad = Zygote.gradient(ff,atype(x))[1]
+		# gnorm = norm(grad) 
+		# gnorm> 1e-1 && (grad /= gnorm)
         return grad
     end
     res = optimize(f, g, 
