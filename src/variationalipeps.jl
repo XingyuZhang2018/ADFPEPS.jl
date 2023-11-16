@@ -32,7 +32,9 @@ function ipeps_enviroment(M::AbstractArray, key)
 																updown = true, 
 																downfromup = false, 
 																show_every=Inf, 
-																info = (indD, indχ, dimsD, dimsχ))
+																info = (indD, indχ, dimsD, dimsχ),
+																savetol = 1e-5
+																)
 
 	ACu = reshape([ein"abc,cd->abd"(ALu[i],Cu[i]) for i = 1:Ni*Nj], (Ni, Nj))
 	ACd = reshape([ein"abc,cd->abd"(ALd[i],Cd[i]) for i = 1:Ni*Nj], (Ni, Nj))
@@ -259,7 +261,8 @@ function optimiseipeps(ipeps::AbstractArray, key;
 						f_tol = 1e-6, opiter = 100, 
 						maxiter_ad = 10, miniter_ad = 1,
 						verbose= false, 
-						optimmethod = LBFGS(m = 20))
+						optimmethod = LBFGS(m = 20,
+						alphaguess=LineSearches.InitialStatic(alpha=1e-5,scaled=true)))
 
     folder, model, Ni, Nj, symmetry, sitetype, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
     consts = initial_consts(key)

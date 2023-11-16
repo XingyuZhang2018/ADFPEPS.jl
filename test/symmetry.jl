@@ -5,7 +5,7 @@ using Random
 using Test
 using OMEinsum
 
-@testset "swapgate with $symmetry symmetry" for symmetry in [:U1], sitetype in [tJZ2(), tJbilayerZ2()]
+@testset "swapgate with $symmetry symmetry" for symmetry in [:U1], sitetype in [tJZ2(), tJbilayerZ2(), tJbilayerSz()]
     D = 3
     sg = swapgate(sitetype, Array, ComplexF64, 4, D)
     sgsymmetry = asSymmetryArray(sg, Val(symmetry), sitetype; dir = [-1,-1,1,1])
@@ -15,7 +15,7 @@ using OMEinsum
     @test sgsymmetry == U1sg
 end
 
-@testset "hamiltonian with $symmetry symmetry" for symmetry in [:U1], sitetype in [tJZ2(), tJbilayerZ2()]
+@testset "hamiltonian with $symmetry symmetry $sitetype" for symmetry in [:U1], sitetype in [tJZ2(), tJbilayerZ2(), tJbilayerSz()]
     Random.seed!(100)
     model = tJ_bilayer(3.0,1.0,0.0,2.0,-1.0)
     h = hamiltonian(model)[1]
