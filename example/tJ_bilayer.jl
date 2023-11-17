@@ -5,15 +5,15 @@ using Random
 using TeneT
 
 CUDA.allowscalar(false)
-Random.seed!(42)
+Random.seed!(100)
 
  indD = [0,1]
 dimsD = [1,1]
  indχ = [0,1]
-dimsχ = [4,3]
+dimsχ = [20,20]
 sitetype = tJbilayerZ2()
 
-ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,-1.0); 
+ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
                        Ni = 1, 
                        Nj = 1, 
                  sitetype = sitetype,
@@ -36,5 +36,5 @@ optimiseipeps(ipeps, key;
                 f_tol = 1e-10, 
                opiter = 100, 
            maxiter_ad = 10,
-           miniter_ad = 3,
+           miniter_ad = 1,
               verbose = true)

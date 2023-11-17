@@ -46,18 +46,10 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
             hocc2[i,j] = 1
         end
 
-        # hdoubleocc = atype([0.0 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 1])
-        # Nzup = atype([0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1])
-        # Nzdn = atype([0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1])
-        # Nxup = atype([0.0 0 0 0; 0 1  1 0; 0  1 1 0; 0 0 0 2]./2)
-        # Nxdn = atype([0.0 0 0 0; 0 1 -1 0; 0 -1 1 0; 0 0 0 2]./2)
-        # Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
-        # Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 0 0 2]./2)
-        # U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
-        # hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1], indqn = getqrange(size(x)...), indims = getblockdims(size(x)...)), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
         occ1 = 0
         occ2 = 0
         for j = 1:Nj, i = 1:Ni
+            println()
             println("==========$i $j==========")
             ir = Ni + 1 - i
             ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(FLo[i,j],ACu[i,j],op[i,j],conj(ACd[ir,j]),FRo[i,j])
@@ -75,9 +67,9 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
 
         occ1 = real(occ1)/Ni/Nj
         occ2 = real(occ2)/Ni/Nj
-        occ  = real(occ)/Ni/Nj
+        occ  = occ1+occ2
         message = "$occ1    $occ2    $occ\n"
-        logfile = open(observable_log, "a")
+        logfile = open(observable_log, "w")
         write(logfile, message)
         close(logfile)
     # end
