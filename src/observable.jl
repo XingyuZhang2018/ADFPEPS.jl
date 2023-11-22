@@ -13,7 +13,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
         ipeps, key = init_ipeps(model; Ni=Ni, Nj=Nj, 
         symmetry=symmetry, sitetype=sitetype, 
         atype=atype, folder=folder, tol=tol, maxiter=maxiter, miniter = 1, d=d, D=D, χ=χ, indD = indD, indχ = indχ, dimsD = dimsD, dimsχ = dimsχ)
-        folder, model, Ni, Nj, symmetry, sitetype, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
+        folder, model, Ni, Nj, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
         observable_log = folder*"/D$(D)_χ$(χ)_observable.log"
         
         T = buildipeps(ipeps, key)
