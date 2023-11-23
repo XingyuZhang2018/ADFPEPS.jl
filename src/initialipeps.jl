@@ -16,7 +16,7 @@ function initialfromD(model, folder, Ni, Nj, symmetry, sitetype,
     indχ = oldindχ, dimsD = olddimsD, dimsχ = olddimsχ, 
     tol=tol, maxiter=maxiter, miniter=miniter)
 
-    _, model, Ni, Nj, symmetry, sitetype, atype, _, _, tol, maxiter, _, _, _, _  = key
+    _, model, Ni, Nj, symmetry, sitetype, atype, _, _, _, tol, maxiter, _, _, _, _  = key
     oldinfo = zerosinitial(Val(symmetry), Array, ComplexF64, oldD, oldD, 9, oldD, oldD; 
 		dir = [-1, -1, 1, 1, 1], 
 		indqn = [oldindD, oldindD, getqrange(sitetype, 9)..., oldindD,oldindD],                    

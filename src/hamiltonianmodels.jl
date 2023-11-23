@@ -128,9 +128,26 @@ function hamiltonian(model::hop_pair)
 
     H1 = Array(H[1],inds(H[1])...)
     H2 = Array(H[2],inds(H[2])...)
-    h = reshape(ein"aij,apq->ipjq"(H1,H2),16,16)
+    h1 = reshape(ein"aij,apq->ipjq"(H1,H2),4,4,4,4)
 
-    return h
+    ampo = AutoMPO()
+    sites = siteinds("Electron",2)
+    ampo .+= -t, "Cdagup",1,"Cup",2
+    ampo .+= -t, "Cdagup",2,"Cup",1
+    ampo .+= -t, "Cdagdn",1,"Cdn",2
+    ampo .+= -t, "Cdagdn",2,"Cdn",1
+    
+    ampo .+= -γ, "Cdagup",1,"Cdagdn",2
+    ampo .+= γ, "Cdagdn",1,"Cdagup",2
+    ampo .+= -γ, "Cdn",2,"Cup",1
+    ampo .+= γ, "Cup",2,"Cdn",1
+    H = MPO(ampo,sites)
+
+    H1 = Array(H[1],inds(H[1])...)
+    H2 = Array(H[2],inds(H[2])...)
+    h2 = reshape(ein"aij,apq->ipjq"(H1,H2),4,4,4,4)
+
+    return h1, h2
 end
 
 function hamiltonian_hand(model::Hubbard)

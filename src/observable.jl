@@ -13,7 +13,7 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
         ipeps, key = init_ipeps(model; Ni=Ni, Nj=Nj, 
         symmetry=symmetry, sitetype=sitetype, 
         atype=atype, folder=folder, tol=tol, maxiter=maxiter, miniter = 1, d=d, D=D, χ=χ, indD = indD, indχ = indχ, dimsD = dimsD, dimsχ = dimsχ)
-        folder, model, Ni, Nj, symmetry, sitetype, atype, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
+        folder, model, Ni, Nj, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ = key
         observable_log = folder*"/D$(D)_χ$(χ)_observable.log"
         
         T = buildipeps(ipeps, key)
@@ -37,61 +37,41 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
         ACu = ALCtoAC(ALu,Cu)
         ACd = ALCtoAC(ALd,Cd)
 
-        hocc = atype(zeros(9,9))
-        for (i,j) in [[2,2],[3,3],[4,4],[7,7]]
-            hocc[i,j] = 1
+        hocc1 = atype(zeros(9,9))
+        for (i,j) in [[4,4],[5,5],[6,6],[7,7],[8,8],[9,9]]
+            hocc1[i,j] = 1
         end
-        for (i,j) in [[5,5],[6,6],[8,8],[9,9]]
-            hocc[i,j] = 2
+        hocc2 = atype(zeros(9,9))
+        for (i,j) in [[2,2],[3,3],[5,5],[6,6],[8,8],[9,9]]
+            hocc2[i,j] = 1
         end
-        # hdoubleocc = atype([0.0 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 1])
-        # Nzup = atype([0.0 0 0 0; 0 1 0 0; 0 0 0 0; 0 0 0 1])
-        # Nzdn = atype([0.0 0 0 0; 0 0 0 0; 0 0 1 0; 0 0 0 1])
-        # Nxup = atype([0.0 0 0 0; 0 1  1 0; 0  1 1 0; 0 0 0 2]./2)
-        # Nxdn = atype([0.0 0 0 0; 0 1 -1 0; 0 -1 1 0; 0 0 0 2]./2)
-        # Nyup = atype([0.0 0 0 0; 0 1 -1im 0; 0 1im 1 0; 0 0 0 2]./2)
-        # Nydn = atype([0.0 0 0 0; 0 1 1im 0; 0 -1im 1 0; 0 0 0 2]./2)
-        # U = atype([1 0 0 0;0 0 1 0;0 -1 0 0;0 0 0 1])
-        # hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn = map(x->asSymmetryArray(x, Val(symmetry); dir = [-1,1], indqn = getqrange(size(x)...), indims = getblockdims(size(x)...)), [hocc, hdoubleocc, Nzup, Nzdn, Nxup, Nxdn, Nyup, Nydn])
-        occ = 0
-        doubleocc = 0
+
+        occ1 = 0
+        occ2 = 0
         for j = 1:Nj, i = 1:Ni
+            println()
             println("==========$i $j==========")
             ir = Ni + 1 - i
             ρ = ein"(((adf,abc),dgebpq),fgh),ceh -> pq"(FLo[i,j],ACu[i,j],op[i,j],conj(ACd[ir,j]),FRo[i,j])
-            # if (i,j) in [(2,1),(1,2)]
-            #     ρ = U' * ρ * U
-            # end
             ρ = asArray(sitetype, ρ)
-            Occ = ein"pq,pq -> "(ρ,hocc)
-            # DoubleOcc = ein"pq,pq -> "(ρ,hdoubleocc)
-            # NNzup = ein"pq,pq -> "(ρ,Nzup)
-            # NNzdn = ein"pq,pq -> "(ρ,Nzdn)
-            # NNxup = ein"pq,pq -> "(ρ,Nxup)
-            # NNxdn = ein"pq,pq -> "(ρ,Nxdn)
-            # NNyup = ein"pq,pq -> "(ρ,Nyup)
-            # NNydn = ein"pq,pq -> "(ρ,Nydn)
-            n = ein"pp -> "(ρ) 
-            occ += Array(Occ)[]/Array(n)[]
-            # doubleocc += Array(DoubleOcc)[]/Array(n)[]
-            println("N = $(Array(Occ)[]/Array(n)[])")
-            # println("DN = $(Array(DoubleOcc)[]/Array(n)[])")
-            # println("Nz↑ = $(Array(NNzup)[]/Array(n)[])")
-            # println("Nz↓ = $(Array(NNzdn)[]/Array(n)[])")
-            # println("Nx↑ = $(Array(NNxup)[]/Array(n)[])")
-            # println("Nx↓ = $(Array(NNxdn)[]/Array(n)[])")
-            # println("Ny↑ = $(Array(NNyup)[]/Array(n)[])")
-            # println("Ny↓ = $(Array(NNydn)[]/Array(n)[])")
-            # println("{$(real(Array(NNzup)[]/Array(n)[])),$(real(Array(NNzdn)[]/Array(n)[])),$(real(Array(NNxup)[]/Array(n)[])),$(real(Array(NNxdn)[]/Array(n)[])),$(real(Array(NNyup)[]/Array(n)[])),$(real(Array(NNydn)[]/Array(n)[]))}")
-            println("{$(real(Array(Occ)[]/Array(n)[]))}")
+            n = ein"pp -> "(ρ)[]
+            Occ1 = ein"pq,pq -> "(ρ,hocc1)[] / n 
+            Occ2 = ein"pq,pq -> "(ρ,hocc2)[] / n
+            
+            occ1 += Occ1
+            occ2 += Occ2
+            println("Occ1 = $Occ1")
+            println("Occ2 = $Occ2")
+            println("Occ = $(Occ1+Occ2)")
         end
 
-        # occ = real(occ)/Ni/Nj
-        # doubleocc = real(doubleocc)/Ni/Nj
-        # message = "$occ   $doubleocc\n"
-        # logfile = open(observable_log, "a")
-        # write(logfile, message)
-        # close(logfile)
+        occ1 = real(occ1)/Ni/Nj
+        occ2 = real(occ2)/Ni/Nj
+        occ  = occ1+occ2
+        message = "$occ1    $occ2    $occ\n"
+        logfile = open(observable_log, "w")
+        write(logfile, message)
+        close(logfile)
     # end
     return occ
 end

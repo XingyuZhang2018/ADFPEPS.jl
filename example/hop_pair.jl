@@ -7,29 +7,34 @@ using TeneT
 CUDA.allowscalar(false)
 Random.seed!(100)
 
- indD = [0, 1]
- indχ = [-2, -1, 0, 1, 2]
-dimsD = [1, 1]
-dimsχ = [1, 4, 6, 4, 1]
+ indD = [0,1]
+dimsD = [1,1]
+ indχ = [0,1]
+dimsχ = [8,8]
+sitetype = electronZ2()
 
 ipeps,key = init_ipeps(hop_pair(1.0,1.0); 
                        Ni = 1, 
                        Nj = 1, 
-                 symmetry = :none, 
+                 sitetype = sitetype,
                     atype = Array, 
-                   folder = "./example/$symmetry/",
+                   folder = "../data/$sitetype/",
                       tol = 1e-10, 
-                  maxiter = 10, 
+                  maxiter = 50, 
                   miniter = 1, 
+                        d = 4,      
                         D = sum(dimsD), 
                         χ = sum(dimsχ), 
                      indD = indD, 
                      indχ = indχ, 
                     dimsD = dimsD, 
                     dimsχ = dimsχ)
-# consts = initial_consts(key)
-# double_ipeps_energy(atype(ipeps), consts, key)
+# @show ipeps
+# consts = initial_consts(key);
+# double_ipeps_energy(ipeps, consts, key);
 optimiseipeps(ipeps, key; 
                 f_tol = 1e-10, 
                opiter = 100, 
+           maxiter_ad = 10,
+           miniter_ad = 1,
               verbose = true)
