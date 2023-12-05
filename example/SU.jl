@@ -434,16 +434,15 @@ dtype =  ComplexF64
 D = 2
 d = 9
 χ = 20
-sitetype = tJZ2()
+sitetype = tJbilayerZ2()
 model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0)
-model = tJ_bilayer(3.0,1.0,0.0,0.0,0.0)
 
 # init Gamma, lambda 
 Gamma, lambda = RandomInit(sitetype, atype, dtype, D, d)
 
 # Simple update
 SUparameter=Dict()
-SUparameter["sitetype"] = tJZ2()
+SUparameter["sitetype"] = sitetype
 SUparameter["atype"] = atype
 SUparameter["dtype"] = dtype 
 SUparameter["D"] = D
@@ -474,13 +473,9 @@ miniter = 1
 indD, dimsD = qndims(A, 1)  # can be wrong 
 indχ = [0,1]
 dimsχ = [10, 10]
+folder = "../data/$sitetype/$(model)_$(D)/"
 key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
 consts = initial_consts(key)
-
-# folder = "../data/$sitetype/$(model)_$(D)/"
-# mkpath(folder)
-# chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
- 
  
 E = double_ipeps_energy(ipeps, consts, key)	
 println("E = \n", E)

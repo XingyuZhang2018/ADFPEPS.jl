@@ -175,7 +175,7 @@ function init_ipeps(model::HamiltonianModel;
 					indD, indχ, dimsD, dimsχ, 
 					tol::Real, maxiter::Int, miniter::Int, verbose = true
 					)
-	folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)/"
+	folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)_$(indχ)_$(dimsχ)/"
     mkpath(folder)
     chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
@@ -214,7 +214,7 @@ function initial_consts(key)
 	# 	 asSymmetryArray(h[2], Val(symmetry), sitetype; dir = [-1,-1,1,1]))
 
 	# h = atype{ComplexF64}(hamiltonian(model))
-	# h = asSymmetryArray(h, Val(symmetry); dir = [-1,-1,1,1])
+	# h = asSymmetryArray(h, Val(symmetry), sitetype; dir = [-1,-1,1,1])
 	# d = size(h, 1)
 	
 	if symmetry == :none

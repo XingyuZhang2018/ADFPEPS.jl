@@ -10,12 +10,12 @@ Random.seed!(100)
  indD = [0,1]
 dimsD = [1,1]
  indχ = [0,1]
-dimsχ = [8,8]
+dimsχ = [10,10]
 sitetype = electronZ2()
 
-ipeps,key = init_ipeps(hop_pair(1.0,1.0); 
-                       Ni = 1, 
-                       Nj = 1, 
+ipeps,key = init_ipeps(hop_pair(1.0,0.0); 
+                       Ni = 2, 
+                       Nj = 2, 
                  sitetype = sitetype,
                     atype = Array, 
                    folder = "../data/$sitetype/",
