@@ -101,12 +101,6 @@ function update_row!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
                         indims = [getblockdims(sitetype, d)..., indims_D, getblockdims(sitetype, d)..., indims_D],
                         ifZ2=sitetype.ifZ2
                         ) 
-    # swap_dD = U1swapgate(atype, ComplexF64, d, D; 
-    #                     indqn = [getqrange(sitetype, d)..., getqrange(sitetype, D)..., getqrange(sitetype, d)..., getqrange(sitetype, D)...], 
-    #                     indims = [getblockdims(sitetype, d)..., getblockdims(sitetype, D)..., getblockdims(sitetype, d)..., getblockdims(sitetype, D)...],
-    #                     ifZ2=sitetype.ifZ2
-    #                     )     
-	 
     #@show swap_dD.size swap_dD.dir 
     # step 1: Fig.29(a)
     #@show swap_dD.qn swap_dD.dims 
@@ -137,23 +131,14 @@ function update_row!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
     UB = reshape(Q', D*d, D, D, D)
     NB = reshape(R', d, D, D*d)
 
-    # temp = ein"slr,ruxd -> sluxd"(NB,UB)  
-    # @show norm(temp - Gamma_1)
-     
-
-    
-
     # step 4, Fig.34(a) or Towards Fig B.1(II)
     # MA =l, r,s    # s,l,r
     # @show MA.size lambda[lm].size NB.size
     # @show MA.dir lambda[lm].dir NB.dir
     Theta_0 = ein"(lrs,rx),pxy -> lspy"(MA, lambda[lm], NB) # anticlock-wise,  
-    # !!!!!!!!!!!!!!!!!!!!!!!!   
+  
     Theta = ein"lspr,psqt -> ltqr"(Theta_0, Udtau) # anticlock-wise,
-    #@show Theta.size Theta_0.size 
-    #@show norm(Theta- Theta_0) 
- 
-
+     
     shape = Theta.size
     temp = reshape(Theta, shape[2]*shape[1], shape[3]*shape[4]) #  
     U, S, V = svd!(temp; trunc=bond, middledir=1)  #  
@@ -166,12 +151,7 @@ function update_row!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
     S = Diagonal(S)
     #@show S 
     # @show MA_new.size S.size NB_new.size 
-    # @show MA_new.dir S.dir NB_new.dir
-    # temp2 = ein"(lpr,rx),xsz ->lpsz"(MA_new, S, NB_new)    
-
-    # @show norm( temp2 - Theta )/norm(temp2)         
-
-     
+    # @show MA_new.dir S.dir NB_new.dir       
 
     # step 5, Fig.(35)
     inv_lambda2 = invDiagU1Matrix( lambda[ order(lm+1) ] )
@@ -185,14 +165,8 @@ function update_row!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
     GAA_new = ein"(((dlur,dx),yl),zu),rpw -> pyzxw"(WA, inv_lambda2, inv_lambda3, inv_lambda4, MA_new)  
     # NB_new:(lpr)  # UB:(l,u,r,d )
     GB_new = ein"(((mpl,lurd),xu),ry),dz -> pmxzy"(NB_new, UB, inv_lambda2, inv_lambda3, inv_lambda4)
-
-
-    # #  WA:(d,l,u,r)  # MA_new:(lpr)
-    # GAA_new = ein"(((dlur,dx),yl),zu),rwp -> pyzxw"(WA, inv_lambda2, inv_lambda3, inv_lambda4, MA )  
-    # # NB_new:(lpr)  # UB:(l,u,r,d )
-    # GB_new = ein"(((pml,lurd),xu),ry),dz -> pmxzy"(NB, UB, inv_lambda2, inv_lambda3, inv_lambda4)
  
-     
+  
     # step 6, Fig.(32b)
     indqn_D, indims_D = qndims(GAA_new, 4)  
     swap_dD = U1swapgate(atype, ComplexF64, d, D; 
@@ -235,7 +209,7 @@ function update_column!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
     GA = Gamma[left]
     GB = Gamma[right]
 
-    D = GA.size[4]
+    D = GA.size[2]
     d = Udtau.size[1]
     
     # d, D, d, D
@@ -334,7 +308,6 @@ function update_once_2nd!(Gamma, lambda, U_local, U_2sites_1, sitetype, atype, D
     temp = 1.0
 
     temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up")
-     
     temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right") 
     temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down")    
     
@@ -343,8 +316,7 @@ function update_once_2nd!(Gamma, lambda, U_local, U_2sites_1, sitetype, atype, D
     
     temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down")
     temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right")
-    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up")   
-    
+    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up") 
     
     Gamma[1] = ein"pludr,ps -> sludr"(Gamma[1], U_local)
     Gamma[2] = ein"pludr,ps -> sludr"(Gamma[2], U_local)
@@ -455,7 +427,8 @@ function SU_ABBA!(Gamma, lambda, model, SUparameter)
 end
 
 
-
+  
+  
 atype = Array 
 dtype =  ComplexF64
 D = 2
@@ -468,8 +441,6 @@ model = tJ_bilayer(3.0,1.0,0.0,0.0,0.0)
 # init Gamma, lambda 
 Gamma, lambda = RandomInit(sitetype, atype, dtype, D, d)
 
-#@show lambda[1]
-
 # Simple update
 SUparameter=Dict()
 SUparameter["sitetype"] = tJZ2()
@@ -479,46 +450,40 @@ SUparameter["D"] = D
 SUparameter["dtau"] = 0.4
 SUparameter["tratio"] = 0.7
 SUparameter["Mindtau"] = 0.0001
-SUparameter["NoUp"] = 2000  
+SUparameter["NoUp"] = 200   
 SUparameter["doEstimate"] = true
 SUparameter["tolerance_Es"] = 1.0e-8
 SUparameter["count_upper"] = 200
 SUparameter["count_lower"] = 50
 SU_ABBA!(Gamma, lambda, model, SUparameter) 
 
-# @show lambda[1]
-# @show lambda[2]
-# @show lambda[3]
-# @show lambda[4]
 
-# measure 
+# ！！ measure  ！！
 A, B = back_to_state(Gamma, lambda)
-#@show A.dims B.dims 
-
-# L = length(A.tensor)
-# ipeps = zeros(dtype, L, 2)  
-# ipeps[:,1] = A.tensor 
-# ipeps[:,2] = B.tensor 
-
-
-# folder = "./data/$sitetype/$(model)_$(D)/"
-# save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
-
-# symmetry = :U1
-# tol = 1e-10
-# maxiter = 50
-# miniter = 1
-# indD, dimsD = qndims(A, 1)  # can be wrong 
-# indχ = [0,1]
-# dimsχ = [10, 10]
-# key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
-# consts = initial_consts(key)
-
  
-# E = double_ipeps_energy(ipeps, consts, key)	
-# println("E = \n", E)
+L = length(A.tensor)
+ipeps = zeros(dtype, L, 2)  
+ipeps[:,1] = A.tensor 
+ipeps[:,2] = B.tensor  
 
+symmetry = :U1
+tol = 1e-10
+maxiter = 50
+miniter = 1
+@show A.dims B.dims 
+indD, dimsD = qndims(A, 1)  # can be wrong 
+indχ = [0,1]
+dimsχ = [10, 10]
+key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
+consts = initial_consts(key)
 
+# folder = "../data/$sitetype/$(model)_$(D)/"
+# mkpath(folder)
+# chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
+ 
+ 
+E = double_ipeps_energy(ipeps, consts, key)	
+println("E = \n", E)
 
 
 println("\n886")     
