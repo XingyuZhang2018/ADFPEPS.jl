@@ -12,7 +12,7 @@ using Printf
 function RandomInit(sitetype, atype, dtype, D, d)
     lambda = Dict()
     for i = 1:4    
-         lambda[i] = IU1(sitetype, atype, dtype, D; dir = [-1,1]) 
+         lambda[i] = randU1(sitetype, atype, dtype, D,D; dir = [-1,1]) 
     end
 
     Gamma = Dict()
@@ -88,7 +88,7 @@ function update_row!(Gamma, lambda, Udtau, sitetype, atype, bond; position)
     GB = Gamma[right]
 
     D = GA.size[4]
-    d = GA.size[1]  
+    d =  Udtau.size[1]
      
      
     # @show indqn_D indims_D      
@@ -307,16 +307,27 @@ function update_once_2nd!(Gamma, lambda, U_local, U_2sites_1, sitetype, atype, D
     
     temp = 1.0
 
-    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up")
-    temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right") 
-    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down")    
+    row = true 
+    col = true 
+   
+    if row
+        temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up")
+    end 
+    col && (temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right") )
+    if row
+        temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down") 
+    end    
     
-    temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="left")
-    temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="left")
+    col && (temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="left"))
+    col && (temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="left"))
     
-    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down")
-    temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right")
-    temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up") 
+    if row
+        temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="down")
+    end 
+    col && (temp *= update_column!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="right"))
+    if row
+        temp *= update_row!(Gamma, lambda, U_2sites_1, sitetype, atype, D, position="up") 
+    end 
     
     Gamma[1] = ein"pludr,ps -> sludr"(Gamma[1], U_local)
     Gamma[2] = ein"pludr,ps -> sludr"(Gamma[2], U_local)
@@ -433,7 +444,6 @@ atype = Array
 dtype =  ComplexF64
 D = 2
 d = 9
-χ = 20
 sitetype = tJbilayerZ2()
 model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0)
 
@@ -449,11 +459,11 @@ SUparameter["D"] = D
 SUparameter["dtau"] = 0.4
 SUparameter["tratio"] = 0.7
 SUparameter["Mindtau"] = 0.0001
-SUparameter["NoUp"] = 200   
+SUparameter["NoUp"] = 1000   
 SUparameter["doEstimate"] = true
 SUparameter["tolerance_Es"] = 1.0e-8
 SUparameter["count_upper"] = 200
-SUparameter["count_lower"] = 50
+SUparameter["count_lower"] = 200
 SU_ABBA!(Gamma, lambda, model, SUparameter) 
 
 
@@ -469,10 +479,11 @@ symmetry = :U1
 tol = 1e-10
 maxiter = 50
 miniter = 1
-@show A.dims B.dims 
+#@show A.dims B.dims 
 indD, dimsD = qndims(A, 1)  # can be wrong 
 indχ = [0,1]
-dimsχ = [10, 10]
+dimsχ = [20,20]
+χ = sum(dimsχ)
 folder = "../data/$sitetype/$(model)_$(D)/"
 key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
 consts = initial_consts(key)
@@ -481,4 +492,4 @@ E = double_ipeps_energy(ipeps, consts, key)
 println("E = \n", E)
 
 
-println("\n886")     
+println("\n886")        

@@ -13,23 +13,27 @@ using NPZ
 atype = Array 
 dtype =  ComplexF64
 D = 2
-d = 9
-χ = 20
-sitetype = tJbilayerZ2()
-model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0)
- 
-#ipeps = atype{dtype}(npzread("./example/U1ipeps.npy") )  
-place = "D:/2020/TN/PEPS/fPEPS-TRY/a_tJ/python_KH_tJ_20231119/run_tJB/data/tJ_bilayer/SU/2site/D=1/t3J1_Jab2_mu" 
-#place = "./example"
-ipeps = atype{dtype}(npzread(place*"/U1ipeps_D1chi8_t3.000_J1.000_Jab2.000_mu0.000.npy") )   
-  
+d = 3
+
+
+# sitetype = tJbilayerZ2()
+# model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0) 
+# place = "D:/2020/TN/PEPS/fPEPS-TRY/a_tJ/python_KH_tJ_20231119/run_tJB/data/tJ_bilayer/SU/2site/D=1/t3J1_Jab2_mu" 
+# ipeps = atype{dtype}(npzread(place*"/U1ipeps_D1chi8_t3.000_J1.000_Jab2.000_mu0.000.npy") )   
+
+sitetype = tJZ2()
+model = tJ(3.0,1.0,-1.0)
+place = "D:/GitFolder/Python_fPEPS/data/tJ/SU/2site/D=1/t3J1_mu" 
+ipeps = atype{dtype}(npzread(place*"/U1ipeps_D1chi8_t3.000_J1.000_mu-1.0000.npy") )   
+@show ipeps
 symmetry = :U1
 tol = 1e-10
 maxiter = 50
 miniter = 1 
 indD, dimsD = [0,1], [1,1]
 indχ = [0,1]
-dimsχ = [10, 10]
+dimsχ = [20, 20]
+χ = sum(dimsχ)
 folder = "../data/$sitetype/$(model)_$(D)/"
 key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
 consts = initial_consts(key) 

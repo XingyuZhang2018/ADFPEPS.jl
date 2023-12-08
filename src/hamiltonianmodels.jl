@@ -235,21 +235,57 @@ function hamiltonian(model::tJ)
     ampo .+= J/2, "S-",1,"S+",2
     ampo .+= J, "Sz",1,"Sz",2
 
-    ampo .+= -J/4, "Ntot",1,"Ntot",2
-
-    if μ ≠ 0
-        ampo .+= μ, "Ntot", 1
-        ampo .+= μ, "Ntot", 2
-    end
+    ampo .+= -J/4, "Ntot",1,"Ntot",2 
 
     H = MPO(ampo,sites)
-
     H1 = Array(H[1],inds(H[1])...)
     H2 = Array(H[2],inds(H[2])...)
     h = ein"aij,apq->ipjq"(H1,H2)
+      
+    H⊥ = zeros(ComplexF64, 3,3)
+    H⊥[2,2] = μ
+    H⊥[3,3] = μ 
 
-    return h
+    # ampo = AutoMPO()
+    # sites = siteinds("tJ",1)     
+    # ampo .+= μ, "Ntot",1  
+    # H = MPO(ampo,sites)
+
+    # H⊥ = Array(H[1],inds(H[1])...)
+
+
+    return h, H⊥
 end
+# function hamiltonian(model::tJ)
+# 	t = model.t
+#     J = model.J
+#     μ = model.μ
+#     ampo = AutoMPO()
+#     sites = siteinds("tJ",2)
+#     ampo .+= -t, "Cdagup",1,"Cup",2
+#     ampo .+= -t, "Cdagup",2,"Cup",1
+#     ampo .+= -t, "Cdagdn",1,"Cdn",2
+#     ampo .+= -t, "Cdagdn",2,"Cdn",1
+    
+#     ampo .+= J/2, "S+",1,"S-",2
+#     ampo .+= J/2, "S-",1,"S+",2
+#     ampo .+= J, "Sz",1,"Sz",2
+
+#     ampo .+= -J/4, "Ntot",1,"Ntot",2
+
+#     if μ ≠ 0
+#         ampo .+= μ, "Ntot", 1
+#         ampo .+= μ, "Ntot", 2
+#     end
+
+#     H = MPO(ampo,sites)
+
+#     H1 = Array(H[1],inds(H[1])...)
+#     H2 = Array(H[2],inds(H[2])...)
+#     h = ein"aij,apq->ipjq"(H1,H2)
+
+#     return h
+# end
 
 function hamiltonian_hand(model::tJ)
     t = model.t
@@ -309,6 +345,8 @@ function hamiltonian(model::tJ_bilayer)
     J⊥ = model.J⊥
     μ = model.μ
 
+    b = 1
+
     ampo = AutoMPO()
     sites = siteinds("tJ",4)
     ampo .+= -t二, "Cdagup",1,"Cup",3
@@ -316,21 +354,21 @@ function hamiltonian(model::tJ_bilayer)
     ampo .+= -t二, "Cdagdn",1,"Cdn",3
     ampo .+= -t二, "Cdagdn",3,"Cdn",1
     
-    ampo .+= -t二, "Cdagup",2,"Cup",4
-    ampo .+= -t二, "Cdagup",4,"Cup",2
-    ampo .+= -t二, "Cdagdn",2,"Cdn",4
-    ampo .+= -t二, "Cdagdn",4,"Cdn",2
+    ampo .+= -t二*b, "Cdagup",2,"Cup",4
+    ampo .+= -t二*b, "Cdagup",4,"Cup",2
+    ampo .+= -t二*b, "Cdagdn",2,"Cdn",4
+    ampo .+= -t二*b, "Cdagdn",4,"Cdn",2
 
     ampo .+= J二/2, "S+",1,"S-",3
     ampo .+= J二/2, "S-",1,"S+",3
     ampo .+= J二, "Sz",1,"Sz",3
 
-    ampo .+= J二/2, "S+",2,"S-",4
-    ampo .+= J二/2, "S-",2,"S+",4
-    ampo .+= J二, "Sz",2,"Sz",4
+    ampo .+= J二/2*b, "S+",2,"S-",4
+    ampo .+= J二/2*b, "S-",2,"S+",4
+    ampo .+= J二*b, "Sz",2,"Sz",4
     
     ampo .+= -J二/4, "Ntot",1,"Ntot",3
-    ampo .+= -J二/4, "Ntot",2,"Ntot",4
+    ampo .+= -J二/4*b, "Ntot",2,"Ntot",4
 
     H = MPO(ampo,sites)
 
@@ -353,7 +391,7 @@ function hamiltonian(model::tJ_bilayer)
 
     if μ ≠ 0
         ampo .+= μ, "Ntot",1
-        ampo .+= μ, "Ntot",2
+        ampo .+= μ*b, "Ntot",2
     end
 
     H = MPO(ampo,sites)
