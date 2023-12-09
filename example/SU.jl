@@ -12,7 +12,7 @@ using Printf
 function RandomInit(sitetype, atype, dtype, D, d)
     lambda = Dict()
     for i = 1:4    
-         lambda[i] = randU1(sitetype, atype, dtype, D,D; dir = [-1,1]) 
+         lambda[i] = IU1(sitetype, atype, dtype, D; dir = [-1,1]) 
     end
 
     Gamma = Dict()
@@ -443,9 +443,9 @@ end
 atype = Array 
 dtype =  ComplexF64
 D = 2
-d = 9
-sitetype = tJbilayerZ2()
-model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0)
+d = 3
+sitetype = tJZ2()
+model = tJ(3.0,1.0,-3.0)
 
 # init Gamma, lambda 
 Gamma, lambda = RandomInit(sitetype, atype, dtype, D, d)
@@ -475,21 +475,26 @@ ipeps = zeros(dtype, L, 2)
 ipeps[:,1] = A.tensor 
 ipeps[:,2] = B.tensor  
 
+
 symmetry = :U1
 tol = 1e-10
 maxiter = 50
 miniter = 1
+Ni = 2
+Nj = 2
 #@show A.dims B.dims 
 indD, dimsD = qndims(A, 1)  # can be wrong 
 indχ = [0,1]
-dimsχ = [20,20]
+dimsχ = [10,10]
 χ = sum(dimsχ)
-folder = "../data/$sitetype/$(model)_$(D)/"
-key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
-consts = initial_consts(key)
+folder = "../data/$sitetype/"
+folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)_$(indχ)_$(dimsχ)/"
+save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", ipeps)
+# key = (folder, model, 2, 2, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
+# consts = initial_consts(key)
  
-E = double_ipeps_energy(ipeps, consts, key)	
-println("E = \n", E)
+# E = double_ipeps_energy(ipeps, consts, key)	
+# println("E = \n", E)
 
 
-println("\n886")        
+# println("\n886")        

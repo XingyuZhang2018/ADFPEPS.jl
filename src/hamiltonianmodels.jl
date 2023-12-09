@@ -246,46 +246,8 @@ function hamiltonian(model::tJ)
     H⊥[2,2] = μ
     H⊥[3,3] = μ 
 
-    # ampo = AutoMPO()
-    # sites = siteinds("tJ",1)     
-    # ampo .+= μ, "Ntot",1  
-    # H = MPO(ampo,sites)
-
-    # H⊥ = Array(H[1],inds(H[1])...)
-
-
     return h, H⊥
 end
-# function hamiltonian(model::tJ)
-# 	t = model.t
-#     J = model.J
-#     μ = model.μ
-#     ampo = AutoMPO()
-#     sites = siteinds("tJ",2)
-#     ampo .+= -t, "Cdagup",1,"Cup",2
-#     ampo .+= -t, "Cdagup",2,"Cup",1
-#     ampo .+= -t, "Cdagdn",1,"Cdn",2
-#     ampo .+= -t, "Cdagdn",2,"Cdn",1
-    
-#     ampo .+= J/2, "S+",1,"S-",2
-#     ampo .+= J/2, "S-",1,"S+",2
-#     ampo .+= J, "Sz",1,"Sz",2
-
-#     ampo .+= -J/4, "Ntot",1,"Ntot",2
-
-#     if μ ≠ 0
-#         ampo .+= μ, "Ntot", 1
-#         ampo .+= μ, "Ntot", 2
-#     end
-
-#     H = MPO(ampo,sites)
-
-#     H1 = Array(H[1],inds(H[1])...)
-#     H2 = Array(H[2],inds(H[2])...)
-#     h = ein"aij,apq->ipjq"(H1,H2)
-
-#     return h
-# end
 
 function hamiltonian_hand(model::tJ)
     t = model.t

@@ -37,12 +37,21 @@ function observable(model, Ni, Nj, atype, folder, symmetry, sitetype, d, D, χ, 
         ACu = ALCtoAC(ALu,Cu)
         ACd = ALCtoAC(ALd,Cd)
 
-        hocc1 = atype(zeros(9,9))
-        for (i,j) in [[4,4],[5,5],[6,6],[7,7],[8,8],[9,9]]
+        # hocc1 = atype(zeros(9,9))
+        # for (i,j) in [[4,4],[5,5],[6,6],[7,7],[8,8],[9,9]]
+        #     hocc1[i,j] = 1
+        # end
+        # hocc2 = atype(zeros(9,9))
+        # for (i,j) in [[2,2],[3,3],[5,5],[6,6],[8,8],[9,9]]
+        #     hocc2[i,j] = 1
+        # end
+
+        hocc1 = atype(zeros(3,3))
+        for (i,j) in [[2,2]]
             hocc1[i,j] = 1
         end
-        hocc2 = atype(zeros(9,9))
-        for (i,j) in [[2,2],[3,3],[5,5],[6,6],[8,8],[9,9]]
+        hocc2 = atype(zeros(3,3))
+        for (i,j) in [[3,3]]
             hocc2[i,j] = 1
         end
 

@@ -1,17 +1,28 @@
 module ADFPEPS
 
-export HamiltonianModel, hamiltonian
-export Hubbard, hop_pair, THubbard, tJ, tJ_bilayer
-export observable
+    using Parameters 
 
-include("utils.jl")
-include("hamiltonianmodels.jl")
-include("contractrules.jl")
-include("fermion.jl")
-include("sitetype.jl")
-include("variationalipeps.jl")
-include("autodiff.jl")
-include("observable.jl")
-include("initialipeps.jl")
+    export HamiltonianModel, hamiltonian
+    export Hubbard, hop_pair, THubbard, tJ, tJ_bilayer
+    export observable
+
+    abstract type Algorithm end
+
+    module Defaults
+        const verbose = true
+        const infolder = "../data/"
+        const outfolder = "../data/"
+    end
+
+    include("utils.jl")
+    include("hamiltonianmodels.jl")
+    include("contractrules.jl")
+    include("fermion.jl")
+    include("sitetype.jl")
+    include("variationalipeps.jl")
+    include("autodiff.jl")
+    include("observable.jl")
+    include("initialipeps.jl")
+    include("SU.jl")
 
 end
