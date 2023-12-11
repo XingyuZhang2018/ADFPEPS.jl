@@ -1,6 +1,8 @@
-using TeneT: qrpos, svd!, invDiagU1Matrix
+using TeneT: qrpos, svd!, invDiagU1Matrix, sqrtDiagU1Matrix
+using Printf 
 using LinearAlgebra
 
+export SU, initΓλ, update_ABBA!
 @with_kw struct SU <: Algorithm
     dτ::Float64 = 0.4
     tratio::Float64 = 0.7
@@ -12,11 +14,11 @@ using LinearAlgebra
     count_lower::Int64 = 100
 end
 
-function initλΓ(ST, D, d)
-    λ = [Iinitial(ST, D; dir = [-1,1]) for _ in 1:4]
+function initΓλ(ST, D, d)
     Γ = [randinitial(ST, d, D, D, D, D; dir = [1, -1, -1, 1, 1]) for _ in 1:2]
     normalize!(Γ)
-    return λ, Γ
+    λ = [Iinitial(ST, D; dir = [-1,1]) for _ in 1:4]
+    return Γ, λ
 end 
 
 order(a) = a<5 ? a : (a-4)
@@ -238,3 +240,102 @@ function update_column!(ST, Γ, λ, Udτ, D_truc; whichbond)
       
     return  Snorm 
 end 
+
+function update_once_2nd!(ST, Γ, λ, U_local, U_2sites_1, D_truc, doEstimate=true)
+    Γ[1] = ein"pludr,ps -> sludr"(Γ[1], U_local)
+    Γ[2] = ein"pludr,ps -> sludr"(Γ[2], U_local) 
+
+    if !doEstimate
+        # step 5, may not needed
+        Γ[1] = Γ[1]/norm(Γ[1])
+        Γ[2] = Γ[2]/norm(Γ[2])
+    end  
+    
+    temp = 1.0
+    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="right")
+    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="up")
+    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="left") 
+    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="down")
+    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="down")
+    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="left")
+    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="up")
+    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="right") 
+    
+    Γ[1] = ein"pludr,ps -> sludr"(Γ[1], U_local)
+    Γ[2] = ein"pludr,ps -> sludr"(Γ[2], U_local)
+    
+    if !doEstimate
+        # step 5, may not needed
+        Γ[1] = Γ[1]/norm(Γ[1])
+        Γ[2] = Γ[2]/norm(Γ[2])
+    end
+    
+    return temp
+end
+
+function back_to_state(Γ, λ)
+    sqrt_λ = sqrtDiagU1Matrix.(λ)
+
+    # order: ulpdr
+    A = ein"(((pludr,xl),yu),dz),rw->yxpzw"(Γ[1], sqrt_λ[3], sqrt_λ[4], sqrt_λ[2], sqrt_λ[1])
+    A = A/norm(A)
+    B = ein"(((pludr,xl),yu),dz),rw->yxpzw"(Γ[2], sqrt_λ[1], sqrt_λ[2], sqrt_λ[4], sqrt_λ[3])
+    B = B/norm(B)
+    
+    return A, B 
+end
+ 
+function update_ABBA!(algorithm, ST, Γ, λ, model)
+    D = size(Γ[1], 2)
+
+    dτ = algorithm.dτ
+     
+    printstyled("start update_ABBA! with $algorithm \n"; bold=true, color=:green) 
+
+    Energy = [10.0]
+    Entropy = [10.0]
+    count = 0    
+ 
+    U_2sites, U_local = evoGate(ST, model, dτ)
+
+    for i in 1:algorithm.NoUp
+        count += 1
+        temp = update_once_2nd!(ST, Γ, λ, U_local, U_2sites, D, algorithm.doEstimate)
+        Estimator = -0.5/dτ * log( temp )
+        push!(Energy, Estimator)
+        dE = Energy[end] - Energy[end-1]
+
+        temp = 0.0
+        for k = 1:4 
+            for val in λ[k].tensor 
+                t1 = real(val)   
+                if t1 > 1.e-16             
+                    temp += -sum(t1 * log(t1))  
+                end 
+            end 
+        end
+        push!(Entropy, temp)       
+        dEnt = Entropy[end] - Entropy[end-1]
+
+        if i % 10 == 0
+            @printf "-------> i = %d, Δτ =%.4e, Energy=%.8f, dE = %.8e \n"  i  dτ Energy[end]  dE  
+            @printf "                            Entropy=%.8f, dEnt = %.8e \n"  Entropy[end] dEnt   
+        end 
+
+        if count > algorithm.count_lower
+            if abs( dE ) < algorithm.tolerance_Es ||  count > algorithm.count_upper
+                dτ *= algorithm.tratio
+                @printf " =====>> i = %d, Δτ =%.4e, count=%d, dE = %.8e \n"  i dτ count dE
+                count = 0
+                printstyled("Reduced Δτ to $dτ\n"; bold=true, color=:red)
+                U_2sites_1, U_local = evoGate(ST, model, dτ)
+            end
+        end 
+
+        if dτ <  algorithm.Mindτ
+             break
+        end 
+    end    
+    
+    return Energy, Entropy
+end
