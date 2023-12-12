@@ -16,7 +16,7 @@ end
 
 function initΓλ(ST, D, d)
     Γ = [randinitial(ST, d, D, D, D, D; dir = [1, -1, -1, 1, 1]) for _ in 1:2]
-    normalize!(Γ)
+    Γ = [Γ[i]/norm(Γ[i]) for i in 1:2]
     λ = [Iinitial(ST, D; dir = [-1,1]) for _ in 1:4]
     return Γ, λ
 end 
@@ -241,7 +241,7 @@ function update_column!(ST, Γ, λ, Udτ, D_truc; whichbond)
     return  Snorm 
 end 
 
-function update_once_2nd!(ST, Γ, λ, U_local, U_2sites_1, D_truc, doEstimate=true)
+function update_once_2nd!(ST, Γ, λ, U_local, U_2sites, D_truc, doEstimate=true)
     Γ[1] = ein"pludr,ps -> sludr"(Γ[1], U_local)
     Γ[2] = ein"pludr,ps -> sludr"(Γ[2], U_local) 
 
@@ -252,14 +252,14 @@ function update_once_2nd!(ST, Γ, λ, U_local, U_2sites_1, D_truc, doEstimate=tr
     end  
     
     temp = 1.0
-    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="right")
-    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="up")
-    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="left") 
-    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="down")
-    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="down")
-    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="left")
-    temp *= update_column!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="up")
-    temp *= update_row!(ST, Γ, λ, U_2sites_1, D_truc, whichbond="right") 
+    temp *= update_row!(ST, Γ, λ, U_2sites, D_truc, whichbond="right")
+    temp *= update_column!(ST, Γ, λ, U_2sites, D_truc, whichbond="up")
+    temp *= update_row!(ST, Γ, λ, U_2sites, D_truc, whichbond="left") 
+    temp *= update_column!(ST, Γ, λ, U_2sites, D_truc, whichbond="down")
+    temp *= update_column!(ST, Γ, λ, U_2sites, D_truc, whichbond="down")
+    temp *= update_row!(ST, Γ, λ, U_2sites, D_truc, whichbond="left")
+    temp *= update_column!(ST, Γ, λ, U_2sites, D_truc, whichbond="up")
+    temp *= update_row!(ST, Γ, λ, U_2sites, D_truc, whichbond="right") 
     
     Γ[1] = ein"pludr,ps -> sludr"(Γ[1], U_local)
     Γ[2] = ein"pludr,ps -> sludr"(Γ[2], U_local)
@@ -328,7 +328,7 @@ function update_ABBA!(algorithm, ST, Γ, λ, model)
                 @printf " =====>> i = %d, Δτ =%.4e, count=%d, dE = %.8e \n"  i dτ count dE
                 count = 0
                 printstyled("Reduced Δτ to $dτ\n"; bold=true, color=:red)
-                U_2sites_1, U_local = evoGate(ST, model, dτ)
+                U_2sites, U_local = evoGate(ST, model, dτ)
             end
         end 
 

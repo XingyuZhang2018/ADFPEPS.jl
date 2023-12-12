@@ -140,8 +140,8 @@ end
 
 @testset "SU update_ABBA!" for symmetry in [:U1], stype in [tJZ2()], atype in [Array], dtype in [ComplexF64]
     Random.seed!(42)
-    model = tJ_bilayer(3.0,1.0,0.0,2.0,0.0)
-    d = 9
+    model = tJ(3.0,1.0,-3.0)
+    d = 3
     D = 2
     ST = SymmetricType(Val(symmetry), stype, atype, dtype)
     algorithm = SU(NoUp = 200)
@@ -155,6 +155,9 @@ end
     @test all(λ[i] != λo[i] for i in 1:4)
     @test all(Γ[i] != Γo[i] for i in 1:2)
 
+    @test Energy[end] ≈ -4.31491649
+    @test Entropy[end] ≈ 1.81830002
+    
     A, B = back_to_state(Γ, λ)
     L = length(A.tensor)
     ipeps = zeros(dtype, L, 2)  
@@ -175,6 +178,7 @@ end
     key = (folder, model, Ni, Nj, symmetry, stype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
     consts = initial_consts(key)
     E = double_ipeps_energy(ipeps, consts, key)	
-    # @test Energy[end] ≈ -4.0939
-    # @test Entropy[end] ≈ 1.8996
+
+    @test E ≈ -4.06699440
+
 end
