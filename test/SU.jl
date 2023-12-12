@@ -173,12 +173,10 @@ end
     tol = 1e-8
     maxiter = 50
     miniter = 1
-    folder = "../data/$stype/"
+    folder = "./data/$stype/"
     folder = folder*"/$(model)_$(Ni)x$(Nj)_$(indD)_$(dimsD)_$(indχ)_$(dimsχ)/"
     key = (folder, model, Ni, Nj, symmetry, stype, atype, d, D, χ, tol, maxiter, miniter, indD, indχ, dimsD, dimsχ)
     consts = initial_consts(key)
     E = double_ipeps_energy(ipeps, consts, key)	
-
     @test E ≈ -4.06699440
-
 end

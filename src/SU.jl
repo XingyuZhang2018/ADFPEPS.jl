@@ -23,21 +23,6 @@ end
 
 order(a) = a<5 ? a : (a-4)
 
-function qndims(ΓA, ind)     
-    indqn_D = Int64[]
-    indims_D = Int64[]
-    qn = ΓA.qn 
-    dims = ΓA.dims 
-    for i in 1:length(ΓA.qn)
-        if qn[i][ind] in indqn_D
-            continue
-        end 
-        push!(indqn_D, qn[i][ind]) 
-        push!(indims_D, dims[i][ind]) 
-    end   
-    return indqn_D, indims_D
-end
-
 function evoGate(ST, model, dτ)
     h = ST.atype{ST.dtype}.(hamiltonian(model))
     d = size(h[1], 1)
