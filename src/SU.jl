@@ -95,7 +95,7 @@ function update_row!(ST, Γ, λ, Udτ, D_truc; whichbond)
      
     shape = Θ.size
     temp = reshape(Θ, shape[2]*shape[1], shape[3]*shape[4]) #  
-    U, S, V = svd!(temp; trunc=D_truc, middledir=1)  #  
+    U, S, V = svd!(temp; trunc=D_truc, middledir=1, ifSU=true)  #  
 
     MA_new = reshape(U, shape[1], shape[2], D_truc)
     NB_new = reshape(V', D_truc, shape[3], shape[4])
@@ -190,7 +190,7 @@ function update_column!(ST, Γ, λ, Udτ, D_truc; whichbond)
  
     shape = Θ.size
     temp = reshape(Θ, shape[2]*shape[1], shape[3]*shape[4]) #  
-    U, S, V = svd!(temp; trunc=D_truc, middledir=1)  #  
+    U, S, V = svd!(temp; trunc=D_truc, middledir=1, ifSU=true)  #  
     MA_new = reshape(U, shape[1], shape[2], D_truc)
     NB_new = reshape(V', D_truc, shape[3], shape[4])    
     S = Diagonal(S)
