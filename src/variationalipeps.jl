@@ -185,7 +185,7 @@ function init_ipeps(model::HamiltonianModel;
     else
 		if SUinit
 			Ni == Nj == 2 || error("SU initial iPEPS only support 2x2")
-			ST = SymmetricType(Val(symmetry), sitetype, atype, ComplexF64)
+			ST = SymmetricType(Val(symmetry), sitetype, Array, ComplexF64)
 			Γ, λ = initΓλ(ST, D, d)
 			update_ABBA!(SU(), ST, Γ, λ, model)
 			A,B = back_to_ipeps(Γ, λ)

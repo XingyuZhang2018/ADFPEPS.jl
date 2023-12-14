@@ -9,15 +9,16 @@ using Optim
 CUDA.allowscalar(false)
 Random.seed!(100)
 
- indD = [0,1]
-dimsD = [1,1]
- indχ = [0,1]
-dimsχ = [20,20]
+  qnD = [0,1]
+dimsD = [2,2]
+  qnχ = [0,1]
+dimsχ = [10,10]
 sitetype = tJbilayerZ2()
 
 ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
-                       Ni = 1, 
-                       Nj = 1, 
+                       Ni = 2, 
+                       Nj = 2, 
+                   SUinit = true,
                  sitetype = sitetype,
                     atype = Array, 
                    folder = "../data/$sitetype/",
@@ -27,8 +28,8 @@ ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0);
                         d = 9,      
                         D = sum(dimsD), 
                         χ = sum(dimsχ), 
-                     indD = indD,  
-                     indχ = indχ, 
+                      qnD =  qnD,  
+                      qnχ =  qnχ, 
                     dimsD = dimsD, 
                     dimsχ = dimsχ)
 # @show ipeps
