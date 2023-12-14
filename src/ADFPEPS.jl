@@ -8,12 +8,6 @@ module ADFPEPS
 
     abstract type Algorithm end
 
-    module Defaults
-        const verbose = true
-        const infolder = "../data/"
-        const outfolder = "../data/"
-    end
-
     include("utils.jl")
     include("hamiltonianmodels.jl")
     include("contractrules.jl")

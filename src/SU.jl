@@ -2,7 +2,7 @@ using TeneT: qrpos, svd!, invDiagU1Matrix, sqrtDiagU1Matrix
 using Printf 
 using LinearAlgebra
 
-export SU, initΓλ, update_ABBA!
+export SU, initΓλ, update_ABBA!, back_to_ipeps
 @with_kw struct SU <: Algorithm
     dτ::Float64 = 0.4
     tratio::Float64 = 0.7
@@ -258,7 +258,7 @@ function update_once_2nd!(ST, Γ, λ, U_local, U_2sites, D_truc, doEstimate=true
     return temp
 end
 
-function back_to_state(Γ, λ)
+function back_to_ipeps(Γ, λ)
     sqrt_λ = sqrtDiagU1Matrix.(λ)
 
     # order: ulpdr

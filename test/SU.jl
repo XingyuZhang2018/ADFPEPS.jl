@@ -1,5 +1,5 @@
 using ADFPEPS
-using ADFPEPS: evoGate, update_row!, update_column!, update_once_2nd!, back_to_state, initial_consts, double_ipeps_energy
+using ADFPEPS: evoGate, update_row!, update_column!, update_once_2nd!, initial_consts, double_ipeps_energy
 using TeneT
 using Test
 using Random
@@ -127,13 +127,13 @@ end
     @test all(Γ[i] != Γo[i] for i in 1:2)
 end
 
-@testset "SU back_to_state" for symmetry in [:U1], stype in [tJZ2()], atype in [Array], dtype in [ComplexF64]
+@testset "SU back_to_ipeps" for symmetry in [:U1], stype in [tJZ2()], atype in [Array], dtype in [ComplexF64]
     d = 3
     D = 4
     ST = SymmetricType(Val(symmetry), stype, atype, dtype)
 
     Γ, λ = initΓλ(ST, D, d)
-    A, B = back_to_state(Γ, λ)
+    A, B = back_to_ipeps(Γ, λ)
     @test size(A) == (D,D,d,D,D)
     @test size(B) == (D,D,d,D,D)
 end
@@ -158,7 +158,7 @@ end
     @test Energy[end] ≈ -4.31491649
     @test Entropy[end] ≈ 1.81830002
     
-    A, B = back_to_state(Γ, λ)
+    A, B = back_to_ipeps(Γ, λ)
     L = length(A.tensor)
     ipeps = zeros(dtype, L, 2)  
     ipeps[:,1] = A.tensor 
