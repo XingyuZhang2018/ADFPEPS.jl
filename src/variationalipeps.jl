@@ -174,11 +174,14 @@ function init_ipeps(model::HamiltonianModel;
 					qnD, qnχ, dimsD, dimsχ, 
 					tol::Real, maxiter::Int, miniter::Int, 
 					SUinit = false,
+					NoUp = 1000,
+					dτ = 0.4,
 					verbose = true
 					)
 	folder = folder*"/$(model)_$(Ni)x$(Nj)_$(qnD)_$(dimsD)_$(qnχ)_$(dimsχ)/"
     mkpath(folder)
     chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
+	Γλchkp_file = folder*"Γλ_D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         ipeps = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
@@ -186,13 +189,19 @@ function init_ipeps(model::HamiltonianModel;
 		if SUinit
 			Ni == Nj == 2 || error("SU initial iPEPS only support 2x2")
 			ST = SymmetricType(Val(symmetry), sitetype, Array, ComplexF64)
-			Γ, λ = initΓλ(ST, D, d)
-			update_ABBA!(SU(), ST, Γ, λ, model)
+			if isfile(Γλchkp_file)
+				Γ, λ = load(Γλchkp_file)["Γλ"]
+				verbose && println("load Γλ from $Γλchkp_file")
+			else
+				Γ, λ = initΓλ(ST, D, d)
+			end
+			update_ABBA!(SU(NoUp = NoUp, dτ = dτ), ST, Γ, λ, model)
+			save(Γλchkp_file, "Γλ", [Γ, λ])
 			A,B = back_to_ipeps(Γ, λ)
 			ipeps = zeros(ST.dtype, length(A.tensor), 2)  
 			ipeps[:,1] = A.tensor 
 			ipeps[:,2] = B.tensor  
-			save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", ipeps)
+			save(chkp_file, "ipeps", ipeps)
 			verbose && println("SU initial iPEPS $chkp_file")
 		else
 			if symmetry == :none
