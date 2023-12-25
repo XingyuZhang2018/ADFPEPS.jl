@@ -30,7 +30,7 @@ function ipeps_enviroment(M::AbstractArray, key)
 				           downfromup = false,
 				           show_every = Inf,
 				           savefile = true, 
-				           savetol = 1e-5,
+				           savetol = 1e-2,
 				           infolder = folder, 
 				           outfolder = folder
 				           ))
@@ -319,18 +319,21 @@ end
 return the optimise infomation of each step, including `time` `iteration` `energy` and `g_norm`, saved in `/data/model_D_chi_tol_maxiter.log`. Save the final `ipeps` in file `/data/model_D_chi_tol_maxiter.jid2`
 """
 function writelog(os::OptimizationState, key=nothing)
-    message = "$(round(os.metadata["time"],digits=2))   $(os.iteration)   $(os.value)   $(os.g_norm)\n"
+	folder, model, Ni, Nj, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, qnD, qnχ, dimsD, dimsχ = key
+
+	ipeps = os.metadata["x"]
+	n, occ, Δ = observable(ipeps, key; verbose = false)
+    message = "$(round(os.metadata["time"],digits=2))   $(os.iteration)   $(os.value)   $(os.g_norm)   $(n)   $(occ)   $Δ\n"
 
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    folder, model, Ni, Nj, symmetry, sitetype, atype, d, D, χ, tol, maxiter, miniter, qnD, qnχ, dimsD, dimsχ = key
     !(isdir(folder)) && mkdir(folder)
     if !(key === nothing)
         logfile = open(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
         write(logfile, message)
         close(logfile)
-        save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
+        save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", ipeps)
     end
     return false
 end
