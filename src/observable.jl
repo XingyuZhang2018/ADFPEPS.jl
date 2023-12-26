@@ -15,10 +15,10 @@ function observable(ipeps, key; verbose = true)
     chkp_file_obs = folder*"/obs_D$(D^2)_χ$(χ).jld2"
     FLo, FRo = load(chkp_file_obs)["env"]
     chkp_file_up = folder*"/up_D$(D^2)_χ$(χ).jld2"                     
-    rtup = SquareVUMPSRuntime(M, chkp_file_up, χ)   
+    rtup = SquareVUMPSRuntime(M, chkp_file_up, χ; verbose = verbose)   
     FLu, FRu, ALu, ARu, Cu = rtup.FL, rtup.FR, rtup.AL, rtup.AR, rtup.C
     chkp_file_down = folder*"/down_D$(D^2)_χ$(χ).jld2"                             
-    rtdown = SquareVUMPSRuntime(M, chkp_file_down, χ)   
+    rtdown = SquareVUMPSRuntime(M, chkp_file_down, χ; verbose = verbose)   
     ALd,ARd,Cd = rtdown.AL,rtdown.AR,rtdown.C
 
     ACu = ALCtoAC(ALu,Cu)

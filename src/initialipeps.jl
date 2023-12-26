@@ -1,8 +1,9 @@
 export initialfromD
 
 function initialfromD(model, folder, Ni, Nj, symmetry, sitetype,
-                      oldindD, oldindχ, olddimsD, olddimsχ, 
-                      newindD, newindχ, newdimsD, newdimsχ,
+                      oldNo,
+                      oldqnD, oldqnχ, olddimsD, olddimsχ, 
+                      newqnD, newqnχ, newdimsD, newdimsχ,
                       tol, maxiter, miniter; 
                       sortqn::Bool = false
                       )
@@ -12,14 +13,15 @@ function initialfromD(model, folder, Ni, Nj, symmetry, sitetype,
     newχ = sum(newdimsχ)
     oldipeps, key = init_ipeps(model; 
     Ni=Ni, Nj=Nj, symmetry=symmetry, sitetype=sitetype, atype=Array, folder=folder, d = 9, 
-    D=oldD, χ=oldχ, indD = oldindD, 
-    indχ = oldindχ, dimsD = olddimsD, dimsχ = olddimsχ, 
+    No = oldNo,
+    D=oldD, χ=oldχ, qnD = oldqnD, 
+    qnχ = oldqnχ, dimsD = olddimsD, dimsχ = olddimsχ, 
     tol=tol, maxiter=maxiter, miniter=miniter)
 
     _, model, Ni, Nj, symmetry, sitetype, atype, _, _, _, tol, maxiter, _, _, _, _  = key
     oldinfo = zerosinitial(Val(symmetry), Array, ComplexF64, oldD, oldD, 9, oldD, oldD; 
 		dir = [-1, -1, 1, 1, 1], 
-		indqn = [oldindD, oldindD, getqrange(sitetype, 9)..., oldindD,oldindD],                    
+		indqn = [oldqnD, oldqnD, getqrange(sitetype, 9)..., oldqnD,oldqnD],                    
 		indims = [olddimsD, olddimsD, getblockdims(sitetype, 9)..., olddimsD, olddimsD], 
 		f = [0],
         ifZ2=sitetype.ifZ2
@@ -28,7 +30,7 @@ function initialfromD(model, folder, Ni, Nj, symmetry, sitetype,
 
     newinfo = zerosinitial(Val(symmetry), Array, ComplexF64, newD, newD, 9, newD, newD; 
                     dir = [-1, -1, 1, 1, 1], 
-                    indqn = [newindD, newindD, getqrange(sitetype, 9)..., newindD, newindD],                    
+                    indqn = [newqnD, newqnD, getqrange(sitetype, 9)..., newqnD, newqnD],                    
                     indims = [newdimsD, newdimsD, getblockdims(sitetype, 9)..., newdimsD, newdimsD], 
                     f = [0],
                     ifZ2=sitetype.ifZ2
@@ -63,6 +65,6 @@ function initialfromD(model, folder, Ni, Nj, symmetry, sitetype,
         # newinitial[:, 2] = vcat(map(vec, newipeps[2].tensor)...)
     end
 
-    folder = folder*"/$(model)_$(Ni)x$(Nj)_$(newindD)_$(newdimsD)/"
-    save(folder*"D$(newD)_χ$(newχ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", newinitial)
+    folder = folder*"/$(model)_$(Ni)x$(Nj)_$(newqnD)_$(newdimsD)_$(newqnχ)_$(newdimsχ)/"
+    save(folder*"No.0_D$(newD)_χ$(newχ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", newinitial)
 end

@@ -30,7 +30,7 @@ function ipeps_enviroment(M::AbstractArray, key)
 				           downfromup = false,
 				           show_every = Inf,
 				           savefile = true, 
-				           savetol = 1e-2,
+				           savetol = 1,
 				           infolder = folder, 
 				           outfolder = folder
 				           ))
@@ -172,6 +172,7 @@ function init_ipeps(model::HamiltonianModel;
 					atype = Array, 
 					d::Int, D::Int, χ::Int, 
 					qnD, qnχ, dimsD, dimsχ, 
+					No::Int = 0,
 					tol::Real, maxiter::Int, miniter::Int, 
 					SUinit = false,
 					NoUp = 1000,
@@ -180,7 +181,7 @@ function init_ipeps(model::HamiltonianModel;
 					)
 	folder = folder*"/$(model)_$(Ni)x$(Nj)_$(qnD)_$(dimsD)_$(qnχ)_$(dimsχ)/"
     mkpath(folder)
-    chkp_file = folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
+    chkp_file = folder*"No.$(No)_D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
 	Γλchkp_file = folder*"Γλ_D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         ipeps = load(chkp_file)["ipeps"]
@@ -333,7 +334,7 @@ function writelog(os::OptimizationState, key=nothing)
         logfile = open(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
         write(logfile, message)
         close(logfile)
-        save(folder*"D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", ipeps)
+        save(folder*"No.$(os.iteration)_D$(D)_χ$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", ipeps)
     end
     return false
 end

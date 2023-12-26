@@ -5,7 +5,7 @@ using Random
 using TeneT
 using LineSearches
 using Optim
-
+using NPZ
 CUDA.allowscalar(false)
 Random.seed!(100)
 
@@ -15,15 +15,16 @@ dimsD = [2,2]
 dimsχ = [8,8]
 sitetype = tJbilayerZ2()
 
-ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,-2.0); 
-                       Ni = 2, 
-                       Nj = 2, 
+ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,0.0); 
+                       Ni = 1, 
+                       Nj = 1, 
                    SUinit = false,
                      NoUp = 1000,
                        dτ = 0.4,
                  sitetype = sitetype,
                     atype = Array, 
                    folder = "../data/$sitetype/",
+                       No = 0,
                       tol = 1e-10, 
                   maxiter = 50, 
                   miniter = 1, 
@@ -35,7 +36,8 @@ ipeps,key = init_ipeps(tJ_bilayer(3.0,1.0,0.0,2.0,-2.0);
                     dimsD = dimsD, 
                     dimsχ = dimsχ)
 # @show ipeps
-ipeps = Array{ComplexF64}(npzread("./example/U1ipeps_D2chi8_t3.000_J1.000_Jab2.000_mu-2.000.npy") )
+# ipeps = Array{ComplexF64}(npzread("./example/U1ipeps_D2chi8_t3.000_J1.000_Jab2.000_mu0.000.npy") )
+
 # consts = initial_consts(key);
 # double_ipeps_energy(ipeps, consts, key);
 # observable(ipeps, key)
